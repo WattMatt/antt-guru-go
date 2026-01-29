@@ -3,6 +3,8 @@ import { Task, TaskDependency, ViewMode } from '@/types/gantt';
 import { format, differenceInDays, addDays, startOfDay, startOfWeek, startOfMonth, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isToday, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { GettingStartedGuide } from './GettingStartedGuide';
 
 interface GanttChartProps {
   tasks: Task[];
@@ -10,9 +12,10 @@ interface GanttChartProps {
   viewMode: ViewMode;
   onTaskClick: (task: Task) => void;
   onToggleComplete: (task: Task) => void;
+  onAddTask?: () => void;
 }
 
-export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggleComplete }: GanttChartProps) {
+export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggleComplete, onAddTask }: GanttChartProps) {
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
     if (tasks.length === 0) {
       const today = startOfDay(new Date());
@@ -155,126 +158,146 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
   const chartWidth = timeUnits.length * unitWidth;
   const todayPosition = getTodayPosition();
 
-  return (
-    <div className="flex border rounded-lg overflow-hidden bg-card">
-      {/* Task list sidebar */}
-      <div className="w-64 flex-shrink-0 border-r bg-muted/30">
-        <div className="h-14 border-b flex items-center px-4 font-semibold bg-muted/50">
-          Task Name
-        </div>
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            className="h-12 border-b flex items-center gap-2 px-4 hover:bg-muted/50 cursor-pointer"
-            onClick={() => onTaskClick(task)}
-          >
-            <Checkbox
-              checked={task.status === 'completed'}
-              onCheckedChange={() => onToggleComplete(task)}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <span className={cn(
-              "text-sm truncate",
-              task.status === 'completed' && "line-through text-muted-foreground"
-            )}>
-              {task.name}
-            </span>
-          </div>
-        ))}
-        {tasks.length === 0 && (
-          <div className="h-12 flex items-center justify-center text-sm text-muted-foreground">
-            No tasks yet
-          </div>
-        )}
+  // Show getting started guide for empty projects
+  if (tasks.length === 0 && onAddTask) {
+    return (
+      <div className="border rounded-lg overflow-hidden bg-card">
+        <GettingStartedGuide onAddTask={onAddTask} />
       </div>
+    );
+  }
 
-      {/* Gantt chart area */}
-      <div className="flex-1 overflow-x-auto">
-        <div style={{ width: chartWidth, minWidth: '100%' }}>
-          {/* Timeline header */}
-          <div className="h-14 border-b flex bg-muted/50">
-            {timeUnits.map((unit, index) => (
-              <div
-                key={index}
-                className={cn(
-                  "flex-shrink-0 border-r flex flex-col items-center justify-center text-xs",
-                  isToday(unit) && "bg-primary/10"
-                )}
-                style={{ width: unitWidth }}
-              >
-                <span className="text-muted-foreground">{formatHeaderUnit(unit)}</span>
-                <span className="font-medium">{formatTimeUnit(unit)}</span>
-              </div>
-            ))}
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="flex border rounded-lg overflow-hidden bg-card">
+        {/* Task list sidebar */}
+        <div className="w-64 flex-shrink-0 border-r bg-muted/30">
+          <div className="h-14 border-b flex items-center px-4 font-semibold bg-muted/50">
+            Task Name
           </div>
+          {tasks.map((task) => (
+            <div
+              key={task.id}
+              className="h-12 border-b flex items-center gap-2 px-4 hover:bg-muted/50 cursor-pointer"
+              onClick={() => onTaskClick(task)}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={task.status === 'completed'}
+                      onCheckedChange={() => onToggleComplete(task)}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Click to mark task as {task.status === 'completed' ? 'incomplete' : 'complete'}</p>
+                </TooltipContent>
+              </Tooltip>
+              <span className={cn(
+                "text-sm truncate",
+                task.status === 'completed' && "line-through text-muted-foreground"
+              )}>
+                {task.name}
+              </span>
+            </div>
+          ))}
+        </div>
 
-          {/* Task bars */}
-          <div className="relative">
-            {/* Today line */}
-            {todayPosition >= 0 && todayPosition <= chartWidth && (
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-destructive z-10"
-                style={{ left: todayPosition }}
-              >
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs bg-destructive text-destructive-foreground px-1 rounded">
-                  Today
-                </div>
-              </div>
-            )}
-
-            {/* Grid lines */}
-            <div className="absolute inset-0 flex">
+        {/* Gantt chart area */}
+        <div className="flex-1 overflow-x-auto">
+          <div style={{ width: chartWidth, minWidth: '100%' }}>
+            {/* Timeline header */}
+            <div className="h-14 border-b flex bg-muted/50">
               {timeUnits.map((unit, index) => (
                 <div
                   key={index}
                   className={cn(
-                    "flex-shrink-0 border-r border-dashed border-border/50",
-                    isToday(unit) && "bg-primary/5"
+                    "flex-shrink-0 border-r flex flex-col items-center justify-center text-xs",
+                    isToday(unit) && "bg-primary/10"
                   )}
                   style={{ width: unitWidth }}
-                />
+                >
+                  <span className="text-muted-foreground">{formatHeaderUnit(unit)}</span>
+                  <span className="font-medium">{formatTimeUnit(unit)}</span>
+                </div>
               ))}
             </div>
 
-            {/* Task rows */}
-            {tasks.map((task) => {
-              const position = getTaskPosition(task);
-              return (
-                <div key={task.id} className="h-12 relative border-b">
-                  <div
-                    className={cn(
-                      "absolute top-2 h-8 rounded cursor-pointer transition-all hover:shadow-md flex items-center px-2",
-                      getStatusColor(task)
-                    )}
-                    style={{
-                      left: position.left,
-                      width: position.width
-                    }}
-                    onClick={() => onTaskClick(task)}
-                  >
-                    {/* Progress bar inside */}
-                    {task.progress > 0 && task.progress < 100 && (
-                      <div
-                        className="absolute inset-0 bg-foreground/20 rounded-l"
-                        style={{ width: `${task.progress}%` }}
-                      />
-                    )}
-                    <span className="text-xs text-primary-foreground font-medium truncate relative z-10">
-                      {position.width > 60 ? task.name : ''}
-                    </span>
+            {/* Task bars */}
+            <div className="relative">
+              {/* Today line */}
+              {todayPosition >= 0 && todayPosition <= chartWidth && (
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-destructive z-10"
+                  style={{ left: todayPosition }}
+                >
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs bg-destructive text-destructive-foreground px-1 rounded">
+                    Today
                   </div>
                 </div>
-              );
-            })}
+              )}
 
-            {tasks.length === 0 && (
-              <div className="h-24 flex items-center justify-center text-muted-foreground">
-                Add tasks to see them on the timeline
+              {/* Grid lines */}
+              <div className="absolute inset-0 flex">
+                {timeUnits.map((unit, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "flex-shrink-0 border-r border-dashed border-border/50",
+                      isToday(unit) && "bg-primary/5"
+                    )}
+                    style={{ width: unitWidth }}
+                  />
+                ))}
               </div>
-            )}
+
+              {/* Task rows */}
+              {tasks.map((task) => {
+                const position = getTaskPosition(task);
+                return (
+                  <div key={task.id} className="h-12 relative border-b">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={cn(
+                            "absolute top-2 h-8 rounded cursor-pointer transition-all hover:shadow-md flex items-center px-2",
+                            getStatusColor(task)
+                          )}
+                          style={{
+                            left: position.left,
+                            width: position.width
+                          }}
+                          onClick={() => onTaskClick(task)}
+                        >
+                          {/* Progress bar inside */}
+                          {task.progress > 0 && task.progress < 100 && (
+                            <div
+                              className="absolute inset-0 bg-foreground/20 rounded-l"
+                              style={{ width: `${task.progress}%` }}
+                            />
+                          )}
+                          <span className="text-xs text-primary-foreground font-medium truncate relative z-10">
+                            {position.width > 60 ? task.name : ''}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-xs space-y-1">
+                          <p className="font-medium">{task.name}</p>
+                          <p>{format(new Date(task.start_date), 'MMM d')} - {format(new Date(task.end_date), 'MMM d')}</p>
+                          <p>Progress: {task.progress}%</p>
+                          <p className="text-muted-foreground">Click to edit task details</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

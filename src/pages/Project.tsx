@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
+import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
 import { Task, ViewMode } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { GanttToolbar } from '@/components/gantt/GanttToolbar';
 import { TaskForm } from '@/components/gantt/TaskForm';
 import { ProgressPanel } from '@/components/gantt/ProgressPanel';
+import { OnboardingChecklist } from '@/components/gantt/OnboardingChecklist';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { ArrowLeft, BarChart3, Settings } from 'lucide-react';
@@ -64,7 +66,14 @@ export default function Project() {
         toast.success('Task updated successfully');
       } else {
         await createTask.mutateAsync({ ...taskData, sort_order: tasks.length });
-        toast.success('Task created successfully');
+        // Show milestone toast for first task
+        if (tasks.length === 0) {
+          toast.success('🎉 Great start! Your first task is on the timeline.');
+        } else if (tasks.length === 2) {
+          toast.success('👏 Nice progress! You now have 3 tasks.');
+        } else {
+          toast.success('Task created successfully');
+        }
       }
       setIsTaskFormOpen(false);
       setSelectedTask(undefined);
@@ -76,7 +85,11 @@ export default function Project() {
   const handleToggleComplete = async (task: Task) => {
     try {
       await toggleTaskStatus.mutateAsync({ id: task.id, status: task.status });
-      toast.success(task.status === 'completed' ? 'Task marked as incomplete' : 'Task completed!');
+      if (task.status !== 'completed') {
+        toast.success('✅ Task completed! Great work!');
+      } else {
+        toast.success('Task marked as incomplete');
+      }
     } catch (error) {
       toast.error('Failed to update task');
     }
@@ -93,6 +106,14 @@ export default function Project() {
   const handleExportWord = () => {
     toast.info('Word export coming soon!');
   };
+
+  // Onboarding progress
+  const onboarding = useOnboardingProgress({
+    tasks,
+    projectId: projectId ?? '',
+    onAddTask: handleAddTask,
+    onExport: handleExportPdf
+  });
 
   if (!project) {
     return (
@@ -141,6 +162,19 @@ export default function Project() {
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-6">
+        {/* Onboarding Checklist */}
+        {onboarding.shouldShow && (
+          <div className="mb-6">
+            <OnboardingChecklist
+              steps={onboarding.steps}
+              completedCount={onboarding.completedCount}
+              totalSteps={onboarding.totalSteps}
+              progressPercentage={onboarding.progressPercentage}
+              onDismiss={onboarding.dismiss}
+            />
+          </div>
+        )}
+
         <div className="flex gap-6">
           {/* Gantt Chart Area */}
           <div className={showProgress ? 'flex-1' : 'w-full'}>
@@ -156,6 +190,7 @@ export default function Project() {
               ownerFilter={ownerFilter}
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}
+              isEmpty={tasks.length === 0}
             />
 
             <div className="mt-4">
@@ -165,6 +200,7 @@ export default function Project() {
                 viewMode={viewMode}
                 onTaskClick={handleTaskClick}
                 onToggleComplete={handleToggleComplete}
+                onAddTask={handleAddTask}
               />
             </div>
           </div>
