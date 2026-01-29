@@ -88,6 +88,9 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
                 onChange={(e) => setName(e.target.value)}
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Give your task a clear, descriptive name
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -153,6 +156,9 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
                 </Popover>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Tasks appear on the timeline based on these dates
+            </p>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -167,6 +173,9 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Track progress from 'Not Started' to 'Completed'
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -177,6 +186,9 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
                   value={owner}
                   onChange={(e) => setOwner(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Assign responsibility to team members
+                </p>
               </div>
             </div>
 
@@ -191,6 +203,9 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
                 onChange={(e) => setProgress(Number(e.target.value))}
                 className="cursor-pointer"
               />
+              <p className="text-xs text-muted-foreground">
+                Update as work progresses (0-100%)
+              </p>
             </div>
           </div>
 
