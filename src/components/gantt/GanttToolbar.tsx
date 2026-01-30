@@ -2,7 +2,7 @@ import { ViewMode, DependencyType } from '@/types/gantt';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -31,6 +31,7 @@ interface GanttToolbarProps {
   isEmpty?: boolean;
   dependencyCount?: number;
   dependencyBreakdown?: DependencyBreakdown;
+  onClearAllDependencies?: () => void;
   // Undo/Redo
   canUndo?: boolean;
   canRedo?: boolean;
@@ -55,6 +56,7 @@ export function GanttToolbar({
   isEmpty = false,
   dependencyCount = 0,
   dependencyBreakdown,
+  onClearAllDependencies,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -256,6 +258,20 @@ export function GanttToolbar({
                           <span className="font-medium text-foreground">Tip:</span> Drag from the circle handle on a task bar to another task to create a dependency link.
                         </p>
                       </div>
+                      {onClearAllDependencies && dependencyCount > 0 && (
+                        <>
+                          <Separator className="my-3" />
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={onClearAllDependencies}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Clear All Dependencies
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>
