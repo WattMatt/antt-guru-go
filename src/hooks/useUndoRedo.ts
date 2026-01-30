@@ -7,6 +7,7 @@ export type ActionType =
   | 'task_delete' 
   | 'task_toggle_status'
   | 'dependency_create' 
+  | 'dependency_update'
   | 'dependency_delete';
 
 export interface UndoableAction {
@@ -20,6 +21,8 @@ export interface UndoableAction {
   // For dependency actions
   dependencyId?: string;
   dependency?: Partial<TaskDependency>;
+  previousDependency?: Partial<TaskDependency>;
+  newDependency?: Partial<TaskDependency>;
 }
 
 interface UseUndoRedoProps {
@@ -91,6 +94,8 @@ export function useUndoRedo({ maxHistory = 50 }: UseUndoRedoProps = {}) {
         return `Toggle task "${action.previousTask?.name || 'Untitled'}"`;
       case 'dependency_create':
         return 'Create dependency';
+      case 'dependency_update':
+        return 'Update dependency type';
       case 'dependency_delete':
         return 'Delete dependency';
       default:

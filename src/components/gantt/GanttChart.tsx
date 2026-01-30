@@ -20,10 +20,11 @@ interface GanttChartProps {
   onAddTask?: () => void;
   onTaskDateChange?: (taskId: string, startDate: Date, endDate: Date) => void;
   onCreateDependency?: (predecessorId: string, successorId: string, dependencyType: DependencyType) => void;
+  onUpdateDependency?: (dependencyId: string, dependencyType: DependencyType) => void;
   onDeleteDependency?: (dependencyId: string) => void;
 }
 
-export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggleComplete, onAddTask, onTaskDateChange, onCreateDependency, onDeleteDependency }: GanttChartProps) {
+export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggleComplete, onAddTask, onTaskDateChange, onCreateDependency, onUpdateDependency, onDeleteDependency }: GanttChartProps) {
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
     if (tasks.length === 0) {
@@ -292,6 +293,7 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
                 unitWidth={unitWidth}
                 chartStartDate={startDate}
                 rowHeight={48}
+                onUpdateDependency={onUpdateDependency}
                 onDeleteDependency={onDeleteDependency}
               />
 
