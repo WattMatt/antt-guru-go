@@ -249,6 +249,13 @@ export function GanttToolbar({
                           </div>
                         </div>
                       </div>
+                      <Separator className="my-3" />
+                      <div className="flex items-start gap-2 p-2 bg-muted/50 rounded-md">
+                        <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">Tip:</span> Drag from the circle handle on a task bar to another task to create a dependency link.
+                        </p>
+                      </div>
                     </div>
                   </PopoverContent>
                 </Popover>
