@@ -2,7 +2,8 @@ import { ViewMode } from '@/types/gantt';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2 } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -109,6 +110,51 @@ export function GanttToolbar({
           </div>
 
           <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
+          {/* Dependency Legend */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
+                <Info className="h-4 w-4" />
+                <span className="hidden md:inline">Dependencies</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72" align="start">
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm">Dependency Types</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FS</span>
+                    <div>
+                      <p className="font-medium">Finish to Start</p>
+                      <p className="text-muted-foreground text-xs">Successor starts after predecessor finishes</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SS</span>
+                    <div>
+                      <p className="font-medium">Start to Start</p>
+                      <p className="text-muted-foreground text-xs">Both tasks start together</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FF</span>
+                    <div>
+                      <p className="font-medium">Finish to Finish</p>
+                      <p className="text-muted-foreground text-xs">Both tasks finish together</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SF</span>
+                    <div>
+                      <p className="font-medium">Start to Finish</p>
+                      <p className="text-muted-foreground text-xs">Successor finishes when predecessor starts</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           <Tooltip>
             <TooltipTrigger asChild>
