@@ -242,6 +242,21 @@ export default function Project() {
     }
   };
 
+  // Clear all dependencies handler
+  const handleClearAllDependencies = useCallback(async () => {
+    if (dependencies.length === 0) return;
+    
+    try {
+      // Delete all dependencies one by one
+      for (const dep of dependencies) {
+        await deleteDependency.mutateAsync(dep.id);
+      }
+      toast.success(`Cleared ${dependencies.length} dependencies`);
+    } catch (error) {
+      toast.error('Failed to clear dependencies');
+    }
+  }, [dependencies, deleteDependency]);
+
   // Undo handler
   const handleUndo = useCallback(async () => {
     const action = popUndo();
@@ -453,6 +468,7 @@ export default function Project() {
               isEmpty={tasks.length === 0}
               dependencyCount={dependencies.length}
               dependencyBreakdown={dependencyBreakdown}
+              onClearAllDependencies={handleClearAllDependencies}
               canUndo={canUndo}
               canRedo={canRedo}
               onUndo={handleUndo}
