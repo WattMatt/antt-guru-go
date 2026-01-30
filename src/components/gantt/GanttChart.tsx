@@ -1,10 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Task, TaskDependency, ViewMode } from '@/types/gantt';
-import { format, differenceInDays, addDays, startOfDay, startOfWeek, startOfMonth, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isToday, isBefore } from 'date-fns';
+import { format, differenceInDays, addDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isToday, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { GettingStartedGuide } from './GettingStartedGuide';
+import { useGanttDrag, DragMode } from '@/hooks/useGanttDrag';
+import { GripVertical } from 'lucide-react';
 
 interface GanttChartProps {
   tasks: Task[];
@@ -13,9 +15,10 @@ interface GanttChartProps {
   onTaskClick: (task: Task) => void;
   onToggleComplete: (task: Task) => void;
   onAddTask?: () => void;
+  onTaskDateChange?: (taskId: string, startDate: Date, endDate: Date) => void;
 }
 
-export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggleComplete, onAddTask }: GanttChartProps) {
+export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggleComplete, onAddTask, onTaskDateChange }: GanttChartProps) {
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
     if (tasks.length === 0) {
       const today = startOfDay(new Date());
@@ -64,7 +67,20 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
     };
   }, [tasks, viewMode]);
 
-  const getTaskPosition = (task: Task) => {
+  const handleTaskUpdate = useCallback((taskId: string, newStartDate: Date, newEndDate: Date) => {
+    if (onTaskDateChange) {
+      onTaskDateChange(taskId, newStartDate, newEndDate);
+    }
+  }, [onTaskDateChange]);
+
+  const { isDragging, draggedTaskId, getPreviewPosition, handleDragStart } = useGanttDrag({
+    viewMode,
+    unitWidth,
+    chartStartDate: startDate,
+    onTaskUpdate: handleTaskUpdate
+  });
+
+  const getTaskPosition = useCallback((task: Task) => {
     const taskStart = startOfDay(new Date(task.start_date));
     const taskEnd = startOfDay(new Date(task.end_date));
     
@@ -93,7 +109,7 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
     }
 
     return { left: Math.max(0, left), width: Math.max(unitWidth / 2, width) };
-  };
+  }, [startDate, viewMode, unitWidth]);
 
   const getTodayPosition = () => {
     const today = startOfDay(new Date());
@@ -113,8 +129,8 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
 
   const getStatusColor = (task: Task) => {
     const today = startOfDay(new Date());
-    const endDate = startOfDay(new Date(task.end_date));
-    const isOverdue = isBefore(endDate, today) && task.status !== 'completed';
+    const taskEndDate = startOfDay(new Date(task.end_date));
+    const isOverdue = isBefore(taskEndDate, today) && task.status !== 'completed';
 
     if (isOverdue) return 'bg-destructive';
     
@@ -169,7 +185,7 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex border rounded-lg overflow-hidden bg-card">
+      <div className={cn("flex border rounded-lg overflow-hidden bg-card", isDragging && "select-none")}>
         {/* Task list sidebar */}
         <div className="w-64 flex-shrink-0 border-r bg-muted/30">
           <div className="h-14 border-b flex items-center px-4 font-semibold bg-muted/50">
@@ -254,32 +270,67 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
 
               {/* Task rows */}
               {tasks.map((task) => {
-                const position = getTaskPosition(task);
+                const previewPosition = getPreviewPosition(task);
+                const position = previewPosition || getTaskPosition(task);
+                const isBeingDragged = draggedTaskId === task.id;
+
                 return (
                   <div key={task.id} className="h-12 relative border-b">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div
                           className={cn(
-                            "absolute top-2 h-8 rounded cursor-pointer transition-all hover:shadow-md flex items-center px-2",
-                            getStatusColor(task)
+                            "absolute top-2 h-8 rounded cursor-pointer transition-shadow flex items-center group",
+                            getStatusColor(task),
+                            isBeingDragged ? "shadow-lg ring-2 ring-primary/50 z-20" : "hover:shadow-md",
+                            isDragging && !isBeingDragged && "opacity-50"
                           )}
                           style={{
                             left: position.left,
-                            width: position.width
+                            width: position.width,
+                            transition: isBeingDragged ? 'none' : 'box-shadow 0.2s'
                           }}
-                          onClick={() => onTaskClick(task)}
+                          onClick={(e) => {
+                            if (!isDragging) {
+                              onTaskClick(task);
+                            }
+                          }}
                         >
-                          {/* Progress bar inside */}
-                          {task.progress > 0 && task.progress < 100 && (
-                            <div
-                              className="absolute inset-0 bg-foreground/20 rounded-l"
-                              style={{ width: `${task.progress}%` }}
-                            />
-                          )}
-                          <span className="text-xs text-primary-foreground font-medium truncate relative z-10">
-                            {position.width > 60 ? task.name : ''}
-                          </span>
+                          {/* Left resize handle */}
+                          <div
+                            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-foreground/20 rounded-l flex items-center justify-center"
+                            onMouseDown={(e) => handleDragStart(e, task, 'resize-start')}
+                          >
+                            <div className="w-0.5 h-4 bg-primary-foreground/50 rounded" />
+                          </div>
+
+                          {/* Move handle (center) */}
+                          <div
+                            className="flex-1 h-full flex items-center justify-center cursor-grab active:cursor-grabbing px-2"
+                            onMouseDown={(e) => handleDragStart(e, task, 'move')}
+                          >
+                            {/* Progress bar inside */}
+                            {task.progress > 0 && task.progress < 100 && (
+                              <div
+                                className="absolute inset-0 bg-foreground/20 rounded-l pointer-events-none"
+                                style={{ width: `${task.progress}%` }}
+                              />
+                            )}
+                            <span className="text-xs text-primary-foreground font-medium truncate relative z-10 pointer-events-none">
+                              {position.width > 60 ? task.name : ''}
+                            </span>
+                            {position.width > 40 && (
+                              <GripVertical className="h-3 w-3 text-primary-foreground/50 ml-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                            )}
+                          </div>
+
+                          {/* Right resize handle */}
+                          <div
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-foreground/20 rounded-r flex items-center justify-center"
+                            onMouseDown={(e) => handleDragStart(e, task, 'resize-end')}
+                          >
+                            <div className="w-0.5 h-4 bg-primary-foreground/50 rounded" />
+                          </div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -287,7 +338,7 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
                           <p className="font-medium">{task.name}</p>
                           <p>{format(new Date(task.start_date), 'MMM d')} - {format(new Date(task.end_date), 'MMM d')}</p>
                           <p>Progress: {task.progress}%</p>
-                          <p className="text-muted-foreground">Click to edit task details</p>
+                          <p className="text-muted-foreground">Drag to move • Drag edges to resize</p>
                         </div>
                       </TooltipContent>
                     </Tooltip>
