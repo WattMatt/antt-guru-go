@@ -148,35 +148,55 @@ export function GanttToolbar({
                       </span>
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-72" align="start">
+                  <PopoverContent className="w-80" align="start">
                     <div className="space-y-3">
                       <h4 className="font-medium text-sm">Dependency Types</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex items-start gap-3">
                           <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FS</span>
-                          <div>
-                            <p className="font-medium">Finish to Start</p>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">Finish to Start</p>
+                              {dependencyBreakdown && dependencyBreakdown.finish_to_start > 0 && (
+                                <span className="text-xs text-primary font-medium">{dependencyBreakdown.finish_to_start}</span>
+                              )}
+                            </div>
                             <p className="text-muted-foreground text-xs">Successor starts after predecessor finishes</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
                           <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SS</span>
-                          <div>
-                            <p className="font-medium">Start to Start</p>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">Start to Start</p>
+                              {dependencyBreakdown && dependencyBreakdown.start_to_start > 0 && (
+                                <span className="text-xs text-primary font-medium">{dependencyBreakdown.start_to_start}</span>
+                              )}
+                            </div>
                             <p className="text-muted-foreground text-xs">Both tasks start together</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
                           <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FF</span>
-                          <div>
-                            <p className="font-medium">Finish to Finish</p>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">Finish to Finish</p>
+                              {dependencyBreakdown && dependencyBreakdown.finish_to_finish > 0 && (
+                                <span className="text-xs text-primary font-medium">{dependencyBreakdown.finish_to_finish}</span>
+                              )}
+                            </div>
                             <p className="text-muted-foreground text-xs">Both tasks finish together</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
                           <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SF</span>
-                          <div>
-                            <p className="font-medium">Start to Finish</p>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">Start to Finish</p>
+                              {dependencyBreakdown && dependencyBreakdown.start_to_finish > 0 && (
+                                <span className="text-xs text-primary font-medium">{dependencyBreakdown.start_to_finish}</span>
+                              )}
+                            </div>
                             <p className="text-muted-foreground text-xs">Successor finishes when predecessor starts</p>
                           </div>
                         </div>
