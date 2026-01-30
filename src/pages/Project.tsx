@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
-import { Task, ViewMode } from '@/types/gantt';
+import { Task, ViewMode, DependencyType } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { GanttToolbar } from '@/components/gantt/GanttToolbar';
 import { TaskForm } from '@/components/gantt/TaskForm';
@@ -19,7 +19,7 @@ export default function Project() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { projects } = useProjects();
-  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus } = useTasks(projectId);
+  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency } = useTasks(projectId);
 
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -120,6 +120,19 @@ export default function Project() {
     toast.info('Word export coming soon!');
   };
 
+  const handleCreateDependency = async (predecessorId: string, successorId: string, dependencyType: DependencyType) => {
+    try {
+      await createDependency.mutateAsync({
+        predecessor_id: predecessorId,
+        successor_id: successorId,
+        dependency_type: dependencyType
+      });
+      toast.success('Dependency created');
+    } catch (error) {
+      toast.error('Failed to create dependency');
+    }
+  };
+
   // Onboarding progress
   const onboarding = useOnboardingProgress({
     tasks,
@@ -215,6 +228,7 @@ export default function Project() {
                 onToggleComplete={handleToggleComplete}
                 onAddTask={handleAddTask}
                 onTaskDateChange={handleTaskDateChange}
+                onCreateDependency={handleCreateDependency}
               />
             </div>
           </div>

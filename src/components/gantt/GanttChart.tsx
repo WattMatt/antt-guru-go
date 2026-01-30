@@ -1,13 +1,15 @@
-import { useMemo, useCallback } from 'react';
-import { Task, TaskDependency, ViewMode } from '@/types/gantt';
+import { useMemo, useCallback, useRef } from 'react';
+import { Task, TaskDependency, ViewMode, DependencyType } from '@/types/gantt';
 import { format, differenceInDays, addDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isToday, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { GettingStartedGuide } from './GettingStartedGuide';
-import { useGanttDrag, DragMode } from '@/hooks/useGanttDrag';
-import { GripVertical } from 'lucide-react';
+import { useGanttDrag } from '@/hooks/useGanttDrag';
+import { useDependencyDrag } from '@/hooks/useDependencyDrag';
+import { GripVertical, Link2 } from 'lucide-react';
 import { DependencyArrows } from './DependencyArrows';
+import { DependencyDragLine } from './DependencyDragLine';
 
 interface GanttChartProps {
   tasks: Task[];
@@ -17,9 +19,11 @@ interface GanttChartProps {
   onToggleComplete: (task: Task) => void;
   onAddTask?: () => void;
   onTaskDateChange?: (taskId: string, startDate: Date, endDate: Date) => void;
+  onCreateDependency?: (predecessorId: string, successorId: string, dependencyType: DependencyType) => void;
 }
 
-export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggleComplete, onAddTask, onTaskDateChange }: GanttChartProps) {
+export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggleComplete, onAddTask, onTaskDateChange, onCreateDependency }: GanttChartProps) {
+  const chartAreaRef = useRef<HTMLDivElement>(null);
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
     if (tasks.length === 0) {
       const today = startOfDay(new Date());
@@ -79,6 +83,27 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
     unitWidth,
     chartStartDate: startDate,
     onTaskUpdate: handleTaskUpdate
+  });
+
+  // Dependency drag hook
+  const handleCreateDependency = useCallback((predecessorId: string, successorId: string, dependencyType: DependencyType) => {
+    if (onCreateDependency) {
+      onCreateDependency(predecessorId, successorId, dependencyType);
+    }
+  }, [onCreateDependency]);
+
+  const {
+    containerRef: depContainerRef,
+    isDragging: isLinkDragging,
+    sourceTaskId: linkSourceTaskId,
+    targetTaskId: linkTargetTaskId,
+    sourcePoint: linkSourcePoint,
+    currentPoint: linkCurrentPoint,
+    handleDragStart: handleLinkDragStart,
+    setTargetTask
+  } = useDependencyDrag({
+    tasks,
+    onCreateDependency: handleCreateDependency
   });
 
   const getTaskPosition = useCallback((task: Task) => {
@@ -186,7 +211,7 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className={cn("flex border rounded-lg overflow-hidden bg-card", isDragging && "select-none")}>
+      <div className={cn("flex border rounded-lg overflow-hidden bg-card", (isDragging || isLinkDragging) && "select-none")}>
         {/* Task list sidebar */}
         <div className="w-64 flex-shrink-0 border-r bg-muted/30">
           <div className="h-14 border-b flex items-center px-4 font-semibold bg-muted/50">
@@ -242,7 +267,22 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
             </div>
 
             {/* Task bars */}
-            <div className="relative">
+            <div 
+              className="relative"
+              ref={(el) => {
+                depContainerRef.current = el;
+                chartAreaRef.current = el;
+              }}
+            >
+              {/* Dependency drag line */}
+              {isLinkDragging && linkSourcePoint && linkCurrentPoint && (
+                <DependencyDragLine
+                  sourcePoint={linkSourcePoint}
+                  currentPoint={linkCurrentPoint}
+                  isValidTarget={!!linkTargetTaskId}
+                />
+              )}
+
               {/* Dependency arrows */}
               <DependencyArrows
                 tasks={tasks}
@@ -280,13 +320,29 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
               </div>
 
               {/* Task rows */}
-              {tasks.map((task) => {
+              {tasks.map((task, taskIndex) => {
                 const previewPosition = getPreviewPosition(task);
                 const position = previewPosition || getTaskPosition(task);
                 const isBeingDragged = draggedTaskId === task.id;
+                const isLinkSource = linkSourceTaskId === task.id;
+                const isLinkTarget = linkTargetTaskId === task.id;
+                const isValidDropTarget = isLinkDragging && !isLinkSource && linkSourceTaskId !== task.id;
 
                 return (
-                  <div key={task.id} className="h-12 relative border-b">
+                  <div 
+                    key={task.id} 
+                    className="h-12 relative border-b"
+                    onMouseEnter={() => {
+                      if (isLinkDragging && !isLinkSource) {
+                        setTargetTask(task.id);
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (isLinkDragging) {
+                        setTargetTask(null);
+                      }
+                    }}
+                  >
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div
@@ -294,7 +350,8 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
                             "absolute top-2 h-8 rounded cursor-pointer transition-shadow flex items-center group",
                             getStatusColor(task),
                             isBeingDragged ? "shadow-lg ring-2 ring-primary/50 z-20" : "hover:shadow-md",
-                            isDragging && !isBeingDragged && "opacity-50"
+                            (isDragging || isLinkDragging) && !isBeingDragged && !isLinkSource && !isLinkTarget && "opacity-50",
+                            isLinkTarget && "ring-2 ring-primary shadow-lg z-20"
                           )}
                           style={{
                             left: position.left,
@@ -302,7 +359,7 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
                             transition: isBeingDragged ? 'none' : 'box-shadow 0.2s'
                           }}
                           onClick={(e) => {
-                            if (!isDragging) {
+                            if (!isDragging && !isLinkDragging) {
                               onTaskClick(task);
                             }
                           }}
@@ -342,6 +399,37 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
                           >
                             <div className="w-0.5 h-4 bg-primary-foreground/50 rounded" />
                           </div>
+
+                          {/* Connection handle for creating dependencies */}
+                          {onCreateDependency && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={cn(
+                                    "absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-primary border-2 border-background flex items-center justify-center cursor-crosshair opacity-0 group-hover:opacity-100 transition-opacity z-30 hover:scale-110",
+                                    isLinkSource && "opacity-100 scale-110"
+                                  )}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (chartAreaRef.current) {
+                                      const rect = chartAreaRef.current.getBoundingClientRect();
+                                      const startPoint = {
+                                        x: position.left + position.width,
+                                        y: taskIndex * 48 + 8 + 16 // row height * index + padding + half height
+                                      };
+                                      handleLinkDragStart(e, task.id, startPoint);
+                                    }
+                                  }}
+                                >
+                                  <Link2 className="h-3 w-3 text-primary-foreground" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="right">
+                                <p className="text-xs">Drag to link tasks</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -349,7 +437,7 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
                           <p className="font-medium">{task.name}</p>
                           <p>{format(new Date(task.start_date), 'MMM d')} - {format(new Date(task.end_date), 'MMM d')}</p>
                           <p>Progress: {task.progress}%</p>
-                          <p className="text-muted-foreground">Drag to move • Drag edges to resize</p>
+                          <p className="text-muted-foreground">Drag to move • Drag edges to resize • Use link icon to create dependencies</p>
                         </div>
                       </TooltipContent>
                     </Tooltip>
