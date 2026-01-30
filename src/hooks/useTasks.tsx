@@ -98,6 +98,23 @@ export function useTasks(projectId: string | undefined) {
     }
   });
 
+  const updateDependency = useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<TaskDependency> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('task_dependencies')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as TaskDependency;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dependencies', projectId] });
+    }
+  });
+
   const deleteDependency = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -141,6 +158,7 @@ export function useTasks(projectId: string | undefined) {
     updateTask,
     deleteTask,
     createDependency,
+    updateDependency,
     deleteDependency,
     toggleTaskStatus
   };

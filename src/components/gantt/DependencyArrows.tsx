@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Task, TaskDependency, ViewMode } from '@/types/gantt';
+import { Task, TaskDependency, ViewMode, DependencyType } from '@/types/gantt';
 import { differenceInDays, startOfDay } from 'date-fns';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { X } from 'lucide-react';
+import { DependencyTypeSelector, getDependencyTypeLabel } from './DependencyTypeSelector';
 
 interface DependencyArrowsProps {
   tasks: Task[];
@@ -12,6 +11,7 @@ interface DependencyArrowsProps {
   chartStartDate: Date;
   rowHeight: number;
   onDeleteDependency?: (dependencyId: string) => void;
+  onUpdateDependency?: (dependencyId: string, type: DependencyType) => void;
 }
 
 interface ArrowPath {
@@ -22,6 +22,7 @@ interface ArrowPath {
   predecessorName: string;
   successorName: string;
   midPoint: { x: number; y: number };
+  dependencyType: DependencyType;
 }
 
 export function DependencyArrows({
@@ -31,8 +32,10 @@ export function DependencyArrows({
   unitWidth,
   chartStartDate,
   rowHeight,
-  onDeleteDependency
+  onDeleteDependency,
+  onUpdateDependency
 }: DependencyArrowsProps) {
+  const [selectedArrowId, setSelectedArrowId] = useState<string | null>(null);
   const [hoveredArrowId, setHoveredArrowId] = useState<string | null>(null);
   const taskMap = useMemo(() => {
     return new Map(tasks.map((task, index) => [task.id, { task, index }]));
@@ -129,7 +132,8 @@ export function DependencyArrows({
           successorId: dep.successor_id,
           predecessorName: predecessorData.task.name,
           successorName: successorData.task.name,
-          midPoint
+          midPoint,
+          dependencyType: dep.dependency_type
         };
       })
       .filter((arrow): arrow is ArrowPath => arrow !== null);
@@ -188,6 +192,7 @@ export function DependencyArrows({
       </defs>
       {arrows.map(arrow => {
         const isHovered = hoveredArrowId === arrow.id;
+        const isSelected = selectedArrowId === arrow.id;
         
         return (
           <g key={arrow.id}>
@@ -200,37 +205,78 @@ export function DependencyArrows({
               className="cursor-pointer"
               onMouseEnter={() => setHoveredArrowId(arrow.id)}
               onMouseLeave={() => setHoveredArrowId(null)}
-              onClick={() => onDeleteDependency?.(arrow.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedArrowId(arrow.id);
+              }}
             />
             {/* Visible path */}
             <path
               d={arrow.path}
-              className={isHovered ? "stroke-destructive" : "stroke-muted-foreground/60"}
+              className={(isHovered || isSelected) ? "stroke-primary" : "stroke-muted-foreground/60"}
               fill="none"
-              strokeWidth={isHovered ? 2.5 : 1.5}
-              markerEnd={isHovered ? "url(#arrowhead-hover)" : "url(#arrowhead-muted)"}
+              strokeWidth={(isHovered || isSelected) ? 2.5 : 1.5}
+              markerEnd={(isHovered || isSelected) ? "url(#arrowhead)" : "url(#arrowhead-muted)"}
               style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
               pointerEvents="none"
             />
-            {/* Delete indicator on hover */}
-            {isHovered && onDeleteDependency && (
-              <g
-                transform={`translate(${arrow.midPoint.x}, ${arrow.midPoint.y})`}
-                className="cursor-pointer"
-                onClick={() => onDeleteDependency(arrow.id)}
-              >
-                <circle
-                  r={10}
-                  className="fill-destructive"
+            {/* Type label on hover/select */}
+            {(isHovered || isSelected) && (
+              <g transform={`translate(${arrow.midPoint.x}, ${arrow.midPoint.y})`}>
+                <rect
+                  x={-12}
+                  y={-10}
+                  width={24}
+                  height={20}
+                  rx={4}
+                  className="fill-primary"
                 />
-                <line x1={-4} y1={-4} x2={4} y2={4} className="stroke-destructive-foreground" strokeWidth={2} strokeLinecap="round" />
-                <line x1={4} y1={-4} x2={-4} y2={4} className="stroke-destructive-foreground" strokeWidth={2} strokeLinecap="round" />
-                <title>Click to remove dependency: {arrow.predecessorName} → {arrow.successorName}</title>
+                <text
+                  x={0}
+                  y={4}
+                  textAnchor="middle"
+                  className="fill-primary-foreground text-[10px] font-bold"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  {getDependencyTypeLabel(arrow.dependencyType)}
+                </text>
               </g>
             )}
           </g>
         );
       })}
+      
+      {/* Dependency type selector popover */}
+      {selectedArrowId && (() => {
+        const selectedArrow = arrows.find(a => a.id === selectedArrowId);
+        if (!selectedArrow) return null;
+        
+        return (
+          <foreignObject
+            x={selectedArrow.midPoint.x - 130}
+            y={selectedArrow.midPoint.y - 200}
+            width={260}
+            height={250}
+            style={{ overflow: 'visible' }}
+          >
+            <DependencyTypeSelector
+              open={true}
+              onOpenChange={(open) => {
+                if (!open) setSelectedArrowId(null);
+              }}
+              selectedType={selectedArrow.dependencyType}
+              onTypeSelect={(type) => {
+                onUpdateDependency?.(selectedArrowId, type);
+                setSelectedArrowId(null);
+              }}
+              onDelete={() => {
+                onDeleteDependency?.(selectedArrowId);
+                setSelectedArrowId(null);
+              }}
+            />
+          </foreignObject>
+        );
+      })()}
     </svg>
   );
 }

@@ -21,7 +21,7 @@ export default function Project() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { projects } = useProjects();
-  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, deleteDependency } = useTasks(projectId);
+  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency } = useTasks(projectId);
   
   // Undo/Redo functionality
   const {
@@ -189,6 +189,25 @@ export default function Project() {
     }
   };
 
+  const handleUpdateDependency = async (dependencyId: string, dependencyType: DependencyType) => {
+    const dep = dependencies.find(d => d.id === dependencyId);
+    try {
+      if (dep) {
+        // Track dependency update for undo
+        pushAction({
+          type: 'dependency_update',
+          dependencyId,
+          previousDependency: { ...dep },
+          newDependency: { ...dep, dependency_type: dependencyType }
+        });
+      }
+      await updateDependency.mutateAsync({ id: dependencyId, dependency_type: dependencyType });
+      toast.success('Dependency type updated');
+    } catch (error) {
+      toast.error('Failed to update dependency');
+    }
+  };
+
   const handleDeleteDependency = async (dependencyId: string) => {
     const dep = dependencies.find(d => d.id === dependencyId);
     try {
@@ -244,6 +263,13 @@ export default function Project() {
             toast.success('Undone: Dependency creation');
           }
           break;
+        case 'dependency_update':
+          // Undo update = restore previous state
+          if (action.dependencyId && action.previousDependency) {
+            await updateDependency.mutateAsync({ id: action.dependencyId, ...action.previousDependency });
+            toast.success('Undone: Dependency type change');
+          }
+          break;
         case 'dependency_delete':
           // Undo delete = recreate the dependency
           if (action.dependency) {
@@ -256,7 +282,7 @@ export default function Project() {
     } catch (error) {
       toast.error('Failed to undo action');
     }
-  }, [popUndo, deleteTask, updateTask, createTask, deleteDependency, createDependency]);
+  }, [popUndo, deleteTask, updateTask, createTask, deleteDependency, createDependency, updateDependency]);
 
   // Redo handler
   const handleRedo = useCallback(async () => {
@@ -296,6 +322,13 @@ export default function Project() {
             toast.success('Redone: Dependency creation');
           }
           break;
+        case 'dependency_update':
+          // Redo update = apply the new state
+          if (action.dependencyId && action.newDependency) {
+            await updateDependency.mutateAsync({ id: action.dependencyId, ...action.newDependency });
+            toast.success('Redone: Dependency type change');
+          }
+          break;
         case 'dependency_delete':
           // Redo delete = delete the dependency again
           if (action.dependencyId) {
@@ -307,7 +340,7 @@ export default function Project() {
     } catch (error) {
       toast.error('Failed to redo action');
     }
-  }, [popRedo, deleteTask, updateTask, createTask, deleteDependency, createDependency]);
+  }, [popRedo, deleteTask, updateTask, createTask, deleteDependency, createDependency, updateDependency]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -420,6 +453,7 @@ export default function Project() {
                 onAddTask={handleAddTask}
                 onTaskDateChange={handleTaskDateChange}
                 onCreateDependency={handleCreateDependency}
+                onUpdateDependency={handleUpdateDependency}
                 onDeleteDependency={handleDeleteDependency}
               />
             </div>
