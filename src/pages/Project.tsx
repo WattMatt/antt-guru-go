@@ -435,7 +435,7 @@ export default function Project() {
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}
               isEmpty={tasks.length === 0}
-              hasDependencies={dependencies.length > 0}
+              dependencyCount={dependencies.length}
               canUndo={canUndo}
               canRedo={canRedo}
               onUndo={handleUndo}
