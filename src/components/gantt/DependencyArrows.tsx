@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { Task, TaskDependency, ViewMode, DependencyType } from '@/types/gantt';
 import { differenceInDays, startOfDay } from 'date-fns';
 import { DependencyTypeSelector, getDependencyTypeLabel } from './DependencyTypeSelector';
@@ -37,9 +37,37 @@ export function DependencyArrows({
 }: DependencyArrowsProps) {
   const [selectedArrowId, setSelectedArrowId] = useState<string | null>(null);
   const [hoveredArrowId, setHoveredArrowId] = useState<string | null>(null);
+  const [newArrowIds, setNewArrowIds] = useState<Set<string>>(new Set());
+  const prevDependencyIdsRef = useRef<Set<string>>(new Set());
+  
   const taskMap = useMemo(() => {
     return new Map(tasks.map((task, index) => [task.id, { task, index }]));
   }, [tasks]);
+
+  // Track new dependencies for animation
+  useEffect(() => {
+    const currentIds = new Set(dependencies.map(d => d.id));
+    const prevIds = prevDependencyIdsRef.current;
+    
+    // Find newly added dependencies
+    const newIds = new Set<string>();
+    currentIds.forEach(id => {
+      if (!prevIds.has(id)) {
+        newIds.add(id);
+      }
+    });
+    
+    if (newIds.size > 0) {
+      setNewArrowIds(newIds);
+      // Clear animation class after animation completes
+      const timer = setTimeout(() => {
+        setNewArrowIds(new Set());
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    
+    prevDependencyIdsRef.current = currentIds;
+  }, [dependencies]);
 
   const getTaskPosition = (task: Task) => {
     const taskStart = startOfDay(new Date(task.start_date));
@@ -189,10 +217,44 @@ export function DependencyArrows({
             className="fill-destructive"
           />
         </marker>
+        {/* Animation styles */}
+        <style>
+          {`
+            @keyframes drawLine {
+              from {
+                stroke-dashoffset: 1000;
+                opacity: 0;
+              }
+              to {
+                stroke-dashoffset: 0;
+                opacity: 1;
+              }
+            }
+            @keyframes fadeInScale {
+              from {
+                opacity: 0;
+                transform: scale(0.5);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .animate-draw-line {
+              animation: drawLine 0.4s ease-out forwards;
+              stroke-dasharray: 1000;
+            }
+            .animate-label-in {
+              animation: fadeInScale 0.3s ease-out 0.2s forwards;
+              opacity: 0;
+            }
+          `}
+        </style>
       </defs>
       {arrows.map(arrow => {
         const isHovered = hoveredArrowId === arrow.id;
         const isSelected = selectedArrowId === arrow.id;
+        const isNew = newArrowIds.has(arrow.id);
         
         return (
           <g key={arrow.id}>
@@ -213,15 +275,21 @@ export function DependencyArrows({
             {/* Visible path */}
             <path
               d={arrow.path}
-              className={(isHovered || isSelected) ? "stroke-primary" : "stroke-muted-foreground/60"}
+              className={`${(isHovered || isSelected) ? "stroke-primary" : "stroke-muted-foreground/60"} ${isNew ? "animate-draw-line" : ""}`}
               fill="none"
               strokeWidth={(isHovered || isSelected) ? 2.5 : 1.5}
               markerEnd={(isHovered || isSelected) ? "url(#arrowhead)" : "url(#arrowhead-muted)"}
-              style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
+              style={{ 
+                transition: isNew ? undefined : 'stroke 0.15s, stroke-width 0.15s',
+              }}
               pointerEvents="none"
             />
             {/* Type label - always visible */}
-            <g transform={`translate(${arrow.midPoint.x}, ${arrow.midPoint.y})`}>
+            <g 
+              transform={`translate(${arrow.midPoint.x}, ${arrow.midPoint.y})`}
+              className={isNew ? "animate-label-in" : ""}
+              style={{ transformOrigin: `${arrow.midPoint.x}px ${arrow.midPoint.y}px` }}
+            >
               <rect
                 x={-12}
                 y={-10}
@@ -244,6 +312,7 @@ export function DependencyArrows({
           </g>
         );
       })}
+      
       
       {/* Dependency type selector popover */}
       {selectedArrowId && (() => {
