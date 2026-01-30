@@ -220,28 +220,27 @@ export function DependencyArrows({
               style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
               pointerEvents="none"
             />
-            {/* Type label on hover/select */}
-            {(isHovered || isSelected) && (
-              <g transform={`translate(${arrow.midPoint.x}, ${arrow.midPoint.y})`}>
-                <rect
-                  x={-12}
-                  y={-10}
-                  width={24}
-                  height={20}
-                  rx={4}
-                  className="fill-primary"
-                />
-                <text
-                  x={0}
-                  y={4}
-                  textAnchor="middle"
-                  className="fill-primary-foreground text-[10px] font-bold"
-                  style={{ pointerEvents: 'none' }}
-                >
-                  {getDependencyTypeLabel(arrow.dependencyType)}
-                </text>
-              </g>
-            )}
+            {/* Type label - always visible */}
+            <g transform={`translate(${arrow.midPoint.x}, ${arrow.midPoint.y})`}>
+              <rect
+                x={-12}
+                y={-10}
+                width={24}
+                height={20}
+                rx={4}
+                className={(isHovered || isSelected) ? "fill-primary" : "fill-muted"}
+                style={{ transition: 'fill 0.15s' }}
+              />
+              <text
+                x={0}
+                y={4}
+                textAnchor="middle"
+                className={(isHovered || isSelected) ? "fill-primary-foreground text-[10px] font-bold" : "fill-muted-foreground text-[10px] font-medium"}
+                style={{ pointerEvents: 'none', transition: 'fill 0.15s' }}
+              >
+                {getDependencyTypeLabel(arrow.dependencyType)}
+              </text>
+            </g>
           </g>
         );
       })}
