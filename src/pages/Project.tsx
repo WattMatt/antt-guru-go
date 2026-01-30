@@ -19,7 +19,7 @@ export default function Project() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { projects } = useProjects();
-  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency } = useTasks(projectId);
+  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, deleteDependency } = useTasks(projectId);
 
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -133,6 +133,15 @@ export default function Project() {
     }
   };
 
+  const handleDeleteDependency = async (dependencyId: string) => {
+    try {
+      await deleteDependency.mutateAsync(dependencyId);
+      toast.success('Dependency removed');
+    } catch (error) {
+      toast.error('Failed to remove dependency');
+    }
+  };
+
   // Onboarding progress
   const onboarding = useOnboardingProgress({
     tasks,
@@ -229,6 +238,7 @@ export default function Project() {
                 onAddTask={handleAddTask}
                 onTaskDateChange={handleTaskDateChange}
                 onCreateDependency={handleCreateDependency}
+                onDeleteDependency={handleDeleteDependency}
               />
             </div>
           </div>

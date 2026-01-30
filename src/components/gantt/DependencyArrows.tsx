@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Task, TaskDependency, ViewMode } from '@/types/gantt';
 import { differenceInDays, startOfDay } from 'date-fns';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { X } from 'lucide-react';
 
 interface DependencyArrowsProps {
   tasks: Task[];
@@ -9,6 +11,7 @@ interface DependencyArrowsProps {
   unitWidth: number;
   chartStartDate: Date;
   rowHeight: number;
+  onDeleteDependency?: (dependencyId: string) => void;
 }
 
 interface ArrowPath {
@@ -16,6 +19,9 @@ interface ArrowPath {
   path: string;
   predecessorId: string;
   successorId: string;
+  predecessorName: string;
+  successorName: string;
+  midPoint: { x: number; y: number };
 }
 
 export function DependencyArrows({
@@ -24,8 +30,10 @@ export function DependencyArrows({
   viewMode,
   unitWidth,
   chartStartDate,
-  rowHeight
+  rowHeight,
+  onDeleteDependency
 }: DependencyArrowsProps) {
+  const [hoveredArrowId, setHoveredArrowId] = useState<string | null>(null);
   const taskMap = useMemo(() => {
     return new Map(tasks.map((task, index) => [task.id, { task, index }]));
   }, [tasks]);
@@ -107,12 +115,21 @@ export function DependencyArrows({
 
         // Create path with curves
         const path = createArrowPath(startX, predY, endX, succY, dep.dependency_type);
+        
+        // Calculate midpoint for delete button
+        const midPoint = {
+          x: (startX + endX) / 2,
+          y: (predY + succY) / 2
+        };
 
         return {
           id: dep.id,
           path,
           predecessorId: dep.predecessor_id,
-          successorId: dep.successor_id
+          successorId: dep.successor_id,
+          predecessorName: predecessorData.task.name,
+          successorName: successorData.task.name,
+          midPoint
         };
       })
       .filter((arrow): arrow is ArrowPath => arrow !== null);
@@ -122,7 +139,7 @@ export function DependencyArrows({
 
   return (
     <svg
-      className="absolute inset-0 pointer-events-none overflow-visible"
+      className="absolute inset-0 overflow-visible"
       style={{ zIndex: 5 }}
     >
       <defs>
@@ -154,17 +171,66 @@ export function DependencyArrows({
             className="fill-muted-foreground/60"
           />
         </marker>
+        <marker
+          id="arrowhead-hover"
+          markerWidth="8"
+          markerHeight="6"
+          refX="7"
+          refY="3"
+          orient="auto"
+          markerUnits="strokeWidth"
+        >
+          <polygon
+            points="0 0, 8 3, 0 6"
+            className="fill-destructive"
+          />
+        </marker>
       </defs>
-      {arrows.map(arrow => (
-        <path
-          key={arrow.id}
-          d={arrow.path}
-          className="stroke-muted-foreground/60 hover:stroke-primary transition-colors"
-          fill="none"
-          strokeWidth={1.5}
-          markerEnd="url(#arrowhead-muted)"
-        />
-      ))}
+      {arrows.map(arrow => {
+        const isHovered = hoveredArrowId === arrow.id;
+        
+        return (
+          <g key={arrow.id}>
+            {/* Invisible wider path for easier clicking */}
+            <path
+              d={arrow.path}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={16}
+              className="cursor-pointer"
+              onMouseEnter={() => setHoveredArrowId(arrow.id)}
+              onMouseLeave={() => setHoveredArrowId(null)}
+              onClick={() => onDeleteDependency?.(arrow.id)}
+            />
+            {/* Visible path */}
+            <path
+              d={arrow.path}
+              className={isHovered ? "stroke-destructive" : "stroke-muted-foreground/60"}
+              fill="none"
+              strokeWidth={isHovered ? 2.5 : 1.5}
+              markerEnd={isHovered ? "url(#arrowhead-hover)" : "url(#arrowhead-muted)"}
+              style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
+              pointerEvents="none"
+            />
+            {/* Delete indicator on hover */}
+            {isHovered && onDeleteDependency && (
+              <g
+                transform={`translate(${arrow.midPoint.x}, ${arrow.midPoint.y})`}
+                className="cursor-pointer"
+                onClick={() => onDeleteDependency(arrow.id)}
+              >
+                <circle
+                  r={10}
+                  className="fill-destructive"
+                />
+                <line x1={-4} y1={-4} x2={4} y2={4} className="stroke-destructive-foreground" strokeWidth={2} strokeLinecap="round" />
+                <line x1={4} y1={-4} x2={-4} y2={4} className="stroke-destructive-foreground" strokeWidth={2} strokeLinecap="round" />
+                <title>Click to remove dependency: {arrow.predecessorName} → {arrow.successorName}</title>
+              </g>
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 }
