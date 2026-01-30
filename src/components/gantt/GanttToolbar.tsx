@@ -151,50 +151,98 @@ export function GanttToolbar({
                   <PopoverContent className="w-80" align="start">
                     <div className="space-y-3">
                       <h4 className="font-medium text-sm">Dependency Types</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-start gap-3">
-                          <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FS</span>
+                      <div className="space-y-1 text-sm">
+                        <div className={cn(
+                          "flex items-start gap-3 p-2 rounded-md transition-colors",
+                          dependencyBreakdown && dependencyBreakdown.finish_to_start > 0 
+                            ? "bg-primary/5 border border-primary/20" 
+                            : "opacity-60"
+                        )}>
+                          <span className={cn(
+                            "flex-shrink-0 w-7 h-5 rounded text-[10px] font-bold flex items-center justify-center",
+                            dependencyBreakdown && dependencyBreakdown.finish_to_start > 0
+                              ? "bg-primary/20 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          )}>FS</span>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
                               <p className="font-medium">Finish to Start</p>
                               {dependencyBreakdown && dependencyBreakdown.finish_to_start > 0 && (
-                                <span className="text-xs text-primary font-medium">{dependencyBreakdown.finish_to_start}</span>
+                                <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
+                                  {dependencyBreakdown.finish_to_start}
+                                </span>
                               )}
                             </div>
                             <p className="text-muted-foreground text-xs">Successor starts after predecessor finishes</p>
                           </div>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SS</span>
+                        <div className={cn(
+                          "flex items-start gap-3 p-2 rounded-md transition-colors",
+                          dependencyBreakdown && dependencyBreakdown.start_to_start > 0 
+                            ? "bg-primary/5 border border-primary/20" 
+                            : "opacity-60"
+                        )}>
+                          <span className={cn(
+                            "flex-shrink-0 w-7 h-5 rounded text-[10px] font-bold flex items-center justify-center",
+                            dependencyBreakdown && dependencyBreakdown.start_to_start > 0
+                              ? "bg-primary/20 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          )}>SS</span>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
                               <p className="font-medium">Start to Start</p>
                               {dependencyBreakdown && dependencyBreakdown.start_to_start > 0 && (
-                                <span className="text-xs text-primary font-medium">{dependencyBreakdown.start_to_start}</span>
+                                <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
+                                  {dependencyBreakdown.start_to_start}
+                                </span>
                               )}
                             </div>
                             <p className="text-muted-foreground text-xs">Both tasks start together</p>
                           </div>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FF</span>
+                        <div className={cn(
+                          "flex items-start gap-3 p-2 rounded-md transition-colors",
+                          dependencyBreakdown && dependencyBreakdown.finish_to_finish > 0 
+                            ? "bg-primary/5 border border-primary/20" 
+                            : "opacity-60"
+                        )}>
+                          <span className={cn(
+                            "flex-shrink-0 w-7 h-5 rounded text-[10px] font-bold flex items-center justify-center",
+                            dependencyBreakdown && dependencyBreakdown.finish_to_finish > 0
+                              ? "bg-primary/20 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          )}>FF</span>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
                               <p className="font-medium">Finish to Finish</p>
                               {dependencyBreakdown && dependencyBreakdown.finish_to_finish > 0 && (
-                                <span className="text-xs text-primary font-medium">{dependencyBreakdown.finish_to_finish}</span>
+                                <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
+                                  {dependencyBreakdown.finish_to_finish}
+                                </span>
                               )}
                             </div>
                             <p className="text-muted-foreground text-xs">Both tasks finish together</p>
                           </div>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SF</span>
+                        <div className={cn(
+                          "flex items-start gap-3 p-2 rounded-md transition-colors",
+                          dependencyBreakdown && dependencyBreakdown.start_to_finish > 0 
+                            ? "bg-primary/5 border border-primary/20" 
+                            : "opacity-60"
+                        )}>
+                          <span className={cn(
+                            "flex-shrink-0 w-7 h-5 rounded text-[10px] font-bold flex items-center justify-center",
+                            dependencyBreakdown && dependencyBreakdown.start_to_finish > 0
+                              ? "bg-primary/20 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          )}>SF</span>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
                               <p className="font-medium">Start to Finish</p>
                               {dependencyBreakdown && dependencyBreakdown.start_to_finish > 0 && (
-                                <span className="text-xs text-primary font-medium">{dependencyBreakdown.start_to_finish}</span>
+                                <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
+                                  {dependencyBreakdown.start_to_finish}
+                                </span>
                               )}
                             </div>
                             <p className="text-muted-foreground text-xs">Successor finishes when predecessor starts</p>
