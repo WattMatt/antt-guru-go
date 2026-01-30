@@ -95,6 +95,19 @@ export default function Project() {
     }
   };
 
+  const handleTaskDateChange = async (taskId: string, startDate: Date, endDate: Date) => {
+    try {
+      await updateTask.mutateAsync({
+        id: taskId,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0]
+      });
+      toast.success('Task dates updated');
+    } catch (error) {
+      toast.error('Failed to update task dates');
+    }
+  };
+
   const handleExportPdf = () => {
     toast.info('PDF export coming soon!');
   };
@@ -201,6 +214,7 @@ export default function Project() {
                 onTaskClick={handleTaskClick}
                 onToggleComplete={handleToggleComplete}
                 onAddTask={handleAddTask}
+                onTaskDateChange={handleTaskDateChange}
               />
             </div>
           </div>
