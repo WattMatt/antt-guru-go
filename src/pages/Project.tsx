@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
+import { useUndoRedo, UndoableAction } from '@/hooks/useUndoRedo';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { Task, ViewMode, DependencyType } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { GanttToolbar } from '@/components/gantt/GanttToolbar';
@@ -20,6 +22,17 @@ export default function Project() {
   const { user } = useAuth();
   const { projects } = useProjects();
   const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, deleteDependency } = useTasks(projectId);
+  
+  // Undo/Redo functionality
+  const {
+    canUndo,
+    canRedo,
+    pushAction,
+    popUndo,
+    popRedo,
+    lastUndoDescription,
+    lastRedoDescription
+  } = useUndoRedo();
 
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -62,10 +75,23 @@ export default function Project() {
   const handleTaskSubmit = async (taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       if (selectedTask) {
+        // Track update action for undo
+        pushAction({
+          type: 'task_update',
+          taskId: selectedTask.id,
+          previousTask: { ...selectedTask },
+          newTask: { ...taskData }
+        });
         await updateTask.mutateAsync({ id: selectedTask.id, ...taskData });
         toast.success('Task updated successfully');
       } else {
-        await createTask.mutateAsync({ ...taskData, sort_order: tasks.length });
+        const newTask = await createTask.mutateAsync({ ...taskData, sort_order: tasks.length });
+        // Track create action for undo
+        pushAction({
+          type: 'task_create',
+          taskId: newTask.id,
+          newTask: { ...newTask }
+        });
         // Show milestone toast for first task
         if (tasks.length === 0) {
           toast.success('🎉 Great start! Your first task is on the timeline.');
@@ -84,6 +110,17 @@ export default function Project() {
 
   const handleToggleComplete = async (task: Task) => {
     try {
+      // Track toggle action for undo
+      pushAction({
+        type: 'task_toggle_status',
+        taskId: task.id,
+        previousTask: { ...task },
+        newTask: { 
+          ...task, 
+          status: task.status === 'completed' ? 'not_started' : 'completed',
+          progress: task.status === 'completed' ? 0 : 100
+        }
+      });
       await toggleTaskStatus.mutateAsync({ id: task.id, status: task.status });
       if (task.status !== 'completed') {
         toast.success('✅ Task completed! Great work!');
@@ -96,7 +133,20 @@ export default function Project() {
   };
 
   const handleTaskDateChange = async (taskId: string, startDate: Date, endDate: Date) => {
+    const task = tasks.find(t => t.id === taskId);
     try {
+      if (task) {
+        // Track date change for undo
+        pushAction({
+          type: 'task_update',
+          taskId,
+          previousTask: { start_date: task.start_date, end_date: task.end_date },
+          newTask: { 
+            start_date: startDate.toISOString().split('T')[0], 
+            end_date: endDate.toISOString().split('T')[0] 
+          }
+        });
+      }
       await updateTask.mutateAsync({
         id: taskId,
         start_date: startDate.toISOString().split('T')[0],
@@ -122,10 +172,16 @@ export default function Project() {
 
   const handleCreateDependency = async (predecessorId: string, successorId: string, dependencyType: DependencyType) => {
     try {
-      await createDependency.mutateAsync({
+      const newDep = await createDependency.mutateAsync({
         predecessor_id: predecessorId,
         successor_id: successorId,
         dependency_type: dependencyType
+      });
+      // Track dependency creation for undo
+      pushAction({
+        type: 'dependency_create',
+        dependencyId: newDep.id,
+        dependency: { ...newDep }
       });
       toast.success('Dependency created');
     } catch (error) {
@@ -134,13 +190,133 @@ export default function Project() {
   };
 
   const handleDeleteDependency = async (dependencyId: string) => {
+    const dep = dependencies.find(d => d.id === dependencyId);
     try {
+      if (dep) {
+        // Track dependency deletion for undo
+        pushAction({
+          type: 'dependency_delete',
+          dependencyId,
+          dependency: { ...dep }
+        });
+      }
       await deleteDependency.mutateAsync(dependencyId);
       toast.success('Dependency removed');
     } catch (error) {
       toast.error('Failed to remove dependency');
     }
   };
+
+  // Undo handler
+  const handleUndo = useCallback(async () => {
+    const action = popUndo();
+    if (!action) return;
+
+    try {
+      switch (action.type) {
+        case 'task_create':
+          // Undo create = delete the task
+          if (action.taskId) {
+            await deleteTask.mutateAsync(action.taskId);
+            toast.success('Undone: Task creation');
+          }
+          break;
+        case 'task_update':
+        case 'task_toggle_status':
+          // Undo update = restore previous state
+          if (action.taskId && action.previousTask) {
+            await updateTask.mutateAsync({ id: action.taskId, ...action.previousTask });
+            toast.success('Undone: Task changes');
+          }
+          break;
+        case 'task_delete':
+          // Undo delete = recreate the task
+          if (action.previousTask) {
+            const { id, created_at, updated_at, ...taskData } = action.previousTask as Task;
+            await createTask.mutateAsync(taskData as any);
+            toast.success('Undone: Task deletion');
+          }
+          break;
+        case 'dependency_create':
+          // Undo create = delete the dependency
+          if (action.dependencyId) {
+            await deleteDependency.mutateAsync(action.dependencyId);
+            toast.success('Undone: Dependency creation');
+          }
+          break;
+        case 'dependency_delete':
+          // Undo delete = recreate the dependency
+          if (action.dependency) {
+            const { id, created_at, ...depData } = action.dependency as any;
+            await createDependency.mutateAsync(depData);
+            toast.success('Undone: Dependency deletion');
+          }
+          break;
+      }
+    } catch (error) {
+      toast.error('Failed to undo action');
+    }
+  }, [popUndo, deleteTask, updateTask, createTask, deleteDependency, createDependency]);
+
+  // Redo handler
+  const handleRedo = useCallback(async () => {
+    const action = popRedo();
+    if (!action) return;
+
+    try {
+      switch (action.type) {
+        case 'task_create':
+          // Redo create = create the task again
+          if (action.newTask) {
+            const { id, created_at, updated_at, ...taskData } = action.newTask as Task;
+            await createTask.mutateAsync(taskData as any);
+            toast.success('Redone: Task creation');
+          }
+          break;
+        case 'task_update':
+        case 'task_toggle_status':
+          // Redo update = apply the new state
+          if (action.taskId && action.newTask) {
+            await updateTask.mutateAsync({ id: action.taskId, ...action.newTask });
+            toast.success('Redone: Task changes');
+          }
+          break;
+        case 'task_delete':
+          // Redo delete = delete the task again
+          if (action.taskId) {
+            await deleteTask.mutateAsync(action.taskId);
+            toast.success('Redone: Task deletion');
+          }
+          break;
+        case 'dependency_create':
+          // Redo create = create the dependency again
+          if (action.dependency) {
+            const { id, created_at, ...depData } = action.dependency as any;
+            await createDependency.mutateAsync(depData);
+            toast.success('Redone: Dependency creation');
+          }
+          break;
+        case 'dependency_delete':
+          // Redo delete = delete the dependency again
+          if (action.dependencyId) {
+            await deleteDependency.mutateAsync(action.dependencyId);
+            toast.success('Redone: Dependency deletion');
+          }
+          break;
+      }
+    } catch (error) {
+      toast.error('Failed to redo action');
+    }
+  }, [popRedo, deleteTask, updateTask, createTask, deleteDependency, createDependency]);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    shortcuts: [
+      { key: 'z', ctrlKey: true, handler: handleUndo, description: 'Undo' },
+      { key: 'y', ctrlKey: true, handler: handleRedo, description: 'Redo' },
+      { key: 'z', ctrlKey: true, shiftKey: true, handler: handleRedo, description: 'Redo (alternative)' }
+    ]
+  });
 
   // Onboarding progress
   const onboarding = useOnboardingProgress({
@@ -226,6 +402,12 @@ export default function Project() {
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}
               isEmpty={tasks.length === 0}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              undoDescription={lastUndoDescription}
+              redoDescription={lastRedoDescription}
             />
 
             <div className="mt-4">

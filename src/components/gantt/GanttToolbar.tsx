@@ -2,10 +2,11 @@ import { ViewMode } from '@/types/gantt';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 interface GanttToolbarProps {
   viewMode: ViewMode;
@@ -20,6 +21,13 @@ interface GanttToolbarProps {
   onOwnerFilterChange: (owner: string) => void;
   owners: string[];
   isEmpty?: boolean;
+  // Undo/Redo
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  undoDescription?: string | null;
+  redoDescription?: string | null;
 }
 
 export function GanttToolbar({
@@ -34,7 +42,13 @@ export function GanttToolbar({
   ownerFilter,
   onOwnerFilterChange,
   owners,
-  isEmpty = false
+  isEmpty = false,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
+  undoDescription,
+  redoDescription
 }: GanttToolbarProps) {
   return (
     <TooltipProvider delayDuration={300}>
@@ -54,6 +68,47 @@ export function GanttToolbar({
               <p>Start by adding tasks with names and dates</p>
             </TooltipContent>
           </Tooltip>
+
+          {/* Undo/Redo buttons */}
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  className="h-9 w-9"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{undoDescription ? `Undo: ${undoDescription}` : 'Nothing to undo'}</p>
+                <p className="text-xs text-muted-foreground">Ctrl+Z</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  className="h-9 w-9"
+                >
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{redoDescription ? `Redo: ${redoDescription}` : 'Nothing to redo'}</p>
+                <p className="text-xs text-muted-foreground">Ctrl+Y</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
           <Tooltip>
             <TooltipTrigger asChild>
