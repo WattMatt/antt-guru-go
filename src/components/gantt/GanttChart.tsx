@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { GettingStartedGuide } from './GettingStartedGuide';
 import { useGanttDrag, DragMode } from '@/hooks/useGanttDrag';
 import { GripVertical } from 'lucide-react';
+import { DependencyArrows } from './DependencyArrows';
 
 interface GanttChartProps {
   tasks: Task[];
@@ -242,6 +243,16 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
 
             {/* Task bars */}
             <div className="relative">
+              {/* Dependency arrows */}
+              <DependencyArrows
+                tasks={tasks}
+                dependencies={dependencies}
+                viewMode={viewMode}
+                unitWidth={unitWidth}
+                chartStartDate={startDate}
+                rowHeight={48}
+              />
+
               {/* Today line */}
               {todayPosition >= 0 && todayPosition <= chartWidth && (
                 <div
