@@ -1,4 +1,4 @@
-import { ViewMode } from '@/types/gantt';
+import { ViewMode, DependencyType } from '@/types/gantt';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,6 +8,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+
+export interface DependencyBreakdown {
+  finish_to_start: number;
+  start_to_start: number;
+  finish_to_finish: number;
+  start_to_finish: number;
+}
 
 interface GanttToolbarProps {
   viewMode: ViewMode;
@@ -23,6 +30,7 @@ interface GanttToolbarProps {
   owners: string[];
   isEmpty?: boolean;
   dependencyCount?: number;
+  dependencyBreakdown?: DependencyBreakdown;
   // Undo/Redo
   canUndo?: boolean;
   canRedo?: boolean;
@@ -46,6 +54,7 @@ export function GanttToolbar({
   owners,
   isEmpty = false,
   dependencyCount = 0,
+  dependencyBreakdown,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -53,6 +62,17 @@ export function GanttToolbar({
   undoDescription,
   redoDescription
 }: GanttToolbarProps) {
+  // Build breakdown tooltip text
+  const getBreakdownText = () => {
+    if (!dependencyBreakdown) return `${dependencyCount} dependencies`;
+    const parts: string[] = [];
+    if (dependencyBreakdown.finish_to_start > 0) parts.push(`${dependencyBreakdown.finish_to_start} FS`);
+    if (dependencyBreakdown.start_to_start > 0) parts.push(`${dependencyBreakdown.start_to_start} SS`);
+    if (dependencyBreakdown.finish_to_finish > 0) parts.push(`${dependencyBreakdown.finish_to_finish} FF`);
+    if (dependencyBreakdown.start_to_finish > 0) parts.push(`${dependencyBreakdown.start_to_finish} SF`);
+    return parts.length > 0 ? parts.join(', ') : `${dependencyCount} dependencies`;
+  };
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-card border rounded-lg">
@@ -115,52 +135,61 @@ export function GanttToolbar({
 
           {/* Dependency Legend - only show when dependencies exist */}
           {dependencyCount > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
-                <Info className="h-4 w-4" />
-                <span className="hidden md:inline">Dependencies</span>
-                <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                  {dependencyCount}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72" align="start">
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm">Dependency Types</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FS</span>
-                    <div>
-                      <p className="font-medium">Finish to Start</p>
-                      <p className="text-muted-foreground text-xs">Successor starts after predecessor finishes</p>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
+                      <Info className="h-4 w-4" />
+                      <span className="hidden md:inline">Dependencies</span>
+                      <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                        {dependencyCount}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72" align="start">
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-sm">Dependency Types</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-start gap-3">
+                          <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FS</span>
+                          <div>
+                            <p className="font-medium">Finish to Start</p>
+                            <p className="text-muted-foreground text-xs">Successor starts after predecessor finishes</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SS</span>
+                          <div>
+                            <p className="font-medium">Start to Start</p>
+                            <p className="text-muted-foreground text-xs">Both tasks start together</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FF</span>
+                          <div>
+                            <p className="font-medium">Finish to Finish</p>
+                            <p className="text-muted-foreground text-xs">Both tasks finish together</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SF</span>
+                          <div>
+                            <p className="font-medium">Start to Finish</p>
+                            <p className="text-muted-foreground text-xs">Successor finishes when predecessor starts</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SS</span>
-                    <div>
-                      <p className="font-medium">Start to Start</p>
-                      <p className="text-muted-foreground text-xs">Both tasks start together</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">FF</span>
-                    <div>
-                      <p className="font-medium">Finish to Finish</p>
-                      <p className="text-muted-foreground text-xs">Both tasks finish together</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-7 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center">SF</span>
-                    <div>
-                      <p className="font-medium">Start to Finish</p>
-                      <p className="text-muted-foreground text-xs">Successor finishes when predecessor starts</p>
-                    </div>
-                  </div>
-                </div>
+                  </PopoverContent>
+                </Popover>
               </div>
-            </PopoverContent>
-          </Popover>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{getBreakdownText()}</p>
+            </TooltipContent>
+          </Tooltip>
           )}
 
           <Tooltip>

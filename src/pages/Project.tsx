@@ -8,7 +8,7 @@ import { useUndoRedo, UndoableAction } from '@/hooks/useUndoRedo';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { Task, ViewMode, DependencyType } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
-import { GanttToolbar } from '@/components/gantt/GanttToolbar';
+import { GanttToolbar, DependencyBreakdown } from '@/components/gantt/GanttToolbar';
 import { TaskForm } from '@/components/gantt/TaskForm';
 import { ProgressPanel } from '@/components/gantt/ProgressPanel';
 import { OnboardingChecklist } from '@/components/gantt/OnboardingChecklist';
@@ -53,6 +53,22 @@ export default function Project() {
     const uniqueOwners = new Set(tasks.map(t => t.owner).filter(Boolean) as string[]);
     return Array.from(uniqueOwners);
   }, [tasks]);
+
+  // Calculate dependency type breakdown for toolbar tooltip
+  const dependencyBreakdown = useMemo((): DependencyBreakdown => {
+    return dependencies.reduce(
+      (acc, dep) => {
+        acc[dep.dependency_type]++;
+        return acc;
+      },
+      {
+        finish_to_start: 0,
+        start_to_start: 0,
+        finish_to_finish: 0,
+        start_to_finish: 0
+      } as DependencyBreakdown
+    );
+  }, [dependencies]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -436,6 +452,7 @@ export default function Project() {
               owners={owners}
               isEmpty={tasks.length === 0}
               dependencyCount={dependencies.length}
+              dependencyBreakdown={dependencyBreakdown}
               canUndo={canUndo}
               canRedo={canRedo}
               onUndo={handleUndo}
