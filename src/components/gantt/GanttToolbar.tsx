@@ -22,6 +22,7 @@ interface GanttToolbarProps {
   onOwnerFilterChange: (owner: string) => void;
   owners: string[];
   isEmpty?: boolean;
+  hasDependencies?: boolean;
   // Undo/Redo
   canUndo?: boolean;
   canRedo?: boolean;
@@ -44,6 +45,7 @@ export function GanttToolbar({
   onOwnerFilterChange,
   owners,
   isEmpty = false,
+  hasDependencies = false,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -111,7 +113,8 @@ export function GanttToolbar({
 
           <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
-          {/* Dependency Legend */}
+          {/* Dependency Legend - only show when dependencies exist */}
+          {hasDependencies && (
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
@@ -155,6 +158,7 @@ export function GanttToolbar({
               </div>
             </PopoverContent>
           </Popover>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
