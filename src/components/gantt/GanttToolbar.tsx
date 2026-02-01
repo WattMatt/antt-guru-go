@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth, addMonths } from 'date-fns';
-import { ViewMode, DependencyType, GroupByMode, ChartViewType } from '@/types/gantt';
+import { ViewMode, DependencyType, GroupByMode, ChartViewType, Baseline } from '@/types/gantt';
 import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { FilterPreset } from '@/hooks/useFilterPresets';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond, Image, CalendarDays, Printer, Route, BarChart3, Users } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
+import { BaselineSelector } from './BaselineSelector';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -77,6 +78,13 @@ interface GanttToolbarProps {
   showCriticalPath?: boolean;
   onShowCriticalPathChange?: (show: boolean) => void;
   criticalPathCount?: number;
+  // Baselines
+  baselines?: Baseline[];
+  activeBaselineId?: string | null;
+  onBaselineChange?: (baselineId: string | null) => void;
+  onCreateBaseline?: (name: string, description?: string) => void;
+  onDeleteBaseline?: (id: string) => void;
+  taskCount?: number;
 }
 
 export function GanttToolbar({
@@ -126,7 +134,14 @@ export function GanttToolbar({
   searchInputRef,
   showCriticalPath = false,
   onShowCriticalPathChange,
-  criticalPathCount = 0
+  criticalPathCount = 0,
+  // Baselines
+  baselines = [],
+  activeBaselineId = null,
+  onBaselineChange,
+  onCreateBaseline,
+  onDeleteBaseline,
+  taskCount = 0
 }: GanttToolbarProps) {
   const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
   const [presetName, setPresetName] = useState('');
@@ -409,6 +424,19 @@ export function GanttToolbar({
                 }</p>
               </TooltipContent>
             </Tooltip>
+          )}
+
+          {/* Baseline Selector */}
+          {onBaselineChange && onCreateBaseline && onDeleteBaseline && (
+            <BaselineSelector
+              baselines={baselines}
+              activeBaselineId={activeBaselineId}
+              onBaselineChange={onBaselineChange}
+              onCreateBaseline={onCreateBaseline}
+              onDeleteBaseline={onDeleteBaseline}
+              taskCount={taskCount}
+              disabled={isEmpty}
+            />
           )}
 
           <ColorLegend />
