@@ -40,6 +40,13 @@ export function BulkActionsBar({
 
           <div className="h-6 w-px bg-border" />
 
+          {/* Keyboard shortcut hint */}
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            Press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">1</kbd>–<kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">0</kbd> for colors
+          </span>
+
+          <div className="h-6 w-px bg-border hidden sm:block" />
+
           {/* Color picker */}
           <Popover>
             <Tooltip>
