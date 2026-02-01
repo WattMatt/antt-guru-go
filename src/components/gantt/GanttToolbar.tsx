@@ -1,9 +1,10 @@
 import { ViewMode, DependencyType } from '@/types/gantt';
 import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -32,6 +33,8 @@ interface GanttToolbarProps {
   colorFilter: string[];
   onColorFilterChange: (colors: string[]) => void;
   onClearFilters?: () => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
   owners: string[];
   isEmpty?: boolean;
   dependencyCount?: number;
@@ -60,6 +63,8 @@ export function GanttToolbar({
   colorFilter,
   onColorFilterChange,
   onClearFilters,
+  searchQuery,
+  onSearchChange,
   owners,
   isEmpty = false,
   dependencyCount = 0,
@@ -317,12 +322,32 @@ export function GanttToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
+          {/* Search input */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-8 w-[180px] h-9"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
           {/* Filters label with active count badge */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Filters:</span>
-            {(statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0) && (
+            {(searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0) && (
               <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
-                {[statusFilter !== 'all', ownerFilter !== 'all', colorFilter.length > 0].filter(Boolean).length}
+                {[searchQuery.trim(), statusFilter !== 'all', ownerFilter !== 'all', colorFilter.length > 0].filter(Boolean).length}
               </span>
             )}
           </div>
@@ -512,7 +537,7 @@ export function GanttToolbar({
           </Tooltip>
 
           {/* Clear Filters button - only show when filters are active */}
-          {(statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0) && onClearFilters && (
+          {(searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0) && onClearFilters && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 

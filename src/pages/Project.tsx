@@ -42,6 +42,7 @@ export default function Project() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [colorFilter, setColorFilter] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showProgress, setShowProgress] = useState(true);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
@@ -76,6 +77,10 @@ export default function Project() {
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
+      // Search filter
+      if (searchQuery.trim() && !task.name.toLowerCase().includes(searchQuery.toLowerCase().trim())) {
+        return false;
+      }
       if (statusFilter !== 'all' && task.status !== statusFilter) return false;
       if (ownerFilter !== 'all' && task.owner !== ownerFilter) return false;
       if (colorFilter.length > 0) {
@@ -85,7 +90,7 @@ export default function Project() {
       }
       return true;
     });
-  }, [tasks, statusFilter, ownerFilter, colorFilter]);
+  }, [tasks, searchQuery, statusFilter, ownerFilter, colorFilter]);
 
   const handleAddTask = () => {
     setSelectedTask(undefined);
@@ -292,6 +297,7 @@ export default function Project() {
   }, []);
 
   const handleClearFilters = useCallback(() => {
+    setSearchQuery('');
     setStatusFilter('all');
     setOwnerFilter('all');
     setColorFilter([]);
@@ -576,6 +582,8 @@ export default function Project() {
               colorFilter={colorFilter}
               onColorFilterChange={setColorFilter}
               onClearFilters={handleClearFilters}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
               owners={owners}
               isEmpty={tasks.length === 0}
               dependencyCount={dependencies.length}
