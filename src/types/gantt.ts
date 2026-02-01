@@ -49,6 +49,24 @@ export interface Milestone {
   updated_at: string;
 }
 
+export interface Baseline {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+
+export interface BaselineTask {
+  id: string;
+  baseline_id: string;
+  task_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+}
+
 export interface Profile {
   id: string;
   user_id: string;

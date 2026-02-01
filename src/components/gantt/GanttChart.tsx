@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useRef } from 'react';
-import { Task, TaskDependency, ViewMode, DependencyType, GroupByMode, Milestone } from '@/types/gantt';
+import { Task, TaskDependency, ViewMode, DependencyType, GroupByMode, Milestone, BaselineTask } from '@/types/gantt';
 import { getTaskColorPreset } from '@/lib/taskColors';
 import { format, differenceInDays, addDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isToday, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,7 @@ interface GanttChartProps {
   onReorderTask?: (taskId: string, newIndex: number) => void;
   searchQuery?: string;
   criticalPathTaskIds?: Set<string>;
+  baselineTasks?: BaselineTask[];
 }
 
 interface TaskGroup {
@@ -86,7 +87,8 @@ export function GanttChart({
   onSelectAll,
   onReorderTask,
   searchQuery,
-  criticalPathTaskIds = new Set()
+  criticalPathTaskIds = new Set(),
+  baselineTasks = []
 }: GanttChartProps) {
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
@@ -651,6 +653,37 @@ export function GanttChart({
                     const isValidDropTarget = isLinkDragging && !isLinkSource && linkSourceTaskId !== task.id;
                     const isOnCriticalPath = criticalPathTaskIds.has(task.id);
 
+                    // Find baseline for this task
+                    const baselineTask = baselineTasks.find(bt => bt.task_id === task.id);
+                    const getBaselinePosition = () => {
+                      if (!baselineTask) return null;
+                      const taskStart = startOfDay(new Date(baselineTask.start_date));
+                      const taskEnd = startOfDay(new Date(baselineTask.end_date));
+                      const daysFromStart = differenceInDays(taskStart, startDate);
+                      const duration = differenceInDays(taskEnd, taskStart) + 1;
+                      let left: number;
+                      let width: number;
+                      switch (viewMode) {
+                        case 'day':
+                          left = daysFromStart * unitWidth;
+                          width = duration * unitWidth;
+                          break;
+                        case 'week':
+                          left = (daysFromStart / 7) * unitWidth;
+                          width = (duration / 7) * unitWidth;
+                          break;
+                        case 'month':
+                          left = (daysFromStart / 30) * unitWidth;
+                          width = (duration / 30) * unitWidth;
+                          break;
+                        default:
+                          left = daysFromStart * unitWidth;
+                          width = duration * unitWidth;
+                      }
+                      return { left: Math.max(0, left), width: Math.max(unitWidth / 2, width) };
+                    };
+                    const baselinePosition = getBaselinePosition();
+
                     // Calculate row position for dependency link handle
                     let rowOffset = 0;
                     for (const g of taskGroups) {
@@ -676,6 +709,26 @@ export function GanttChart({
                           }
                         }}
                       >
+                        {/* Baseline bar (shows original planned dates) */}
+                        {baselinePosition && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="absolute top-3 h-2 rounded-sm bg-muted-foreground/30 border border-dashed border-muted-foreground/50 z-0"
+                                style={{
+                                  left: baselinePosition.left,
+                                  width: baselinePosition.width
+                                }}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="text-xs">
+                                <p className="font-medium">Baseline: {baselineTask?.name}</p>
+                                <p>{format(new Date(baselineTask!.start_date), 'MMM d')} - {format(new Date(baselineTask!.end_date), 'MMM d')}</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div

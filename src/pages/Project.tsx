@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { useMilestones, Milestone } from '@/hooks/useMilestones';
+import { useBaselines } from '@/hooks/useBaselines';
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
 import { useUndoRedo, UndoableAction } from '@/hooks/useUndoRedo';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -11,7 +12,7 @@ import { useFilterPresets, FilterPreset } from '@/hooks/useFilterPresets';
 import { useChartExport } from '@/hooks/useChartExport';
 import { TASK_COLOR_PRESETS } from '@/lib/taskColors';
 import { calculateCriticalPath } from '@/lib/criticalPath';
-import { Task, ViewMode, DependencyType, GroupByMode, ChartViewType } from '@/types/gantt';
+import { Task, ViewMode, DependencyType, GroupByMode, ChartViewType, BaselineTask } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { ResourceWorkloadView } from '@/components/gantt/ResourceWorkloadView';
 import { GanttToolbar, DependencyBreakdown } from '@/components/gantt/GanttToolbar';
@@ -36,6 +37,9 @@ export default function Project() {
   
   // Milestones
   const { milestones, createMilestone, updateMilestone, deleteMilestone } = useMilestones(projectId);
+  
+  // Baselines
+  const { baselines, baselineTasks, createBaseline, deleteBaseline, getBaselineTasks } = useBaselines(projectId);
   
   // Undo/Redo functionality
   const {
@@ -71,6 +75,7 @@ export default function Project() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showCriticalPath, setShowCriticalPath] = useState(false);
+  const [activeBaselineId, setActiveBaselineId] = useState<string | null>(null);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -117,6 +122,12 @@ export default function Project() {
     }
     return calculateCriticalPath(tasks, dependencies);
   }, [tasks, dependencies, showCriticalPath]);
+
+  // Get active baseline tasks for comparison
+  const activeBaselineTasks = useMemo((): BaselineTask[] => {
+    if (!activeBaselineId) return [];
+    return getBaselineTasks(activeBaselineId);
+  }, [activeBaselineId, getBaselineTasks]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -693,6 +704,28 @@ export default function Project() {
     onExport: exportAsPdf
   });
 
+  // Baseline handlers
+  const handleCreateBaseline = async (name: string, description?: string) => {
+    try {
+      await createBaseline.mutateAsync({ name, description, tasks });
+      toast.success(`Baseline "${name}" saved with ${tasks.length} tasks`);
+    } catch (error) {
+      toast.error('Failed to save baseline');
+    }
+  };
+
+  const handleDeleteBaseline = async (id: string) => {
+    try {
+      await deleteBaseline.mutateAsync(id);
+      if (activeBaselineId === id) {
+        setActiveBaselineId(null);
+      }
+      toast.success('Baseline deleted');
+    } catch (error) {
+      toast.error('Failed to delete baseline');
+    }
+  };
+
   if (!project) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -827,6 +860,12 @@ export default function Project() {
                 showCriticalPath={showCriticalPath}
                 onShowCriticalPathChange={setShowCriticalPath}
                 criticalPathCount={criticalPathTaskIds.size}
+                baselines={baselines}
+                activeBaselineId={activeBaselineId}
+                onBaselineChange={setActiveBaselineId}
+                onCreateBaseline={handleCreateBaseline}
+                onDeleteBaseline={handleDeleteBaseline}
+                taskCount={tasks.length}
               />
             </div>
 
@@ -852,6 +891,7 @@ export default function Project() {
                   onReorderTask={handleReorderTask}
                   searchQuery={searchQuery}
                   criticalPathTaskIds={criticalPathTaskIds}
+                  baselineTasks={activeBaselineTasks}
                 />
               ) : (
                 <ResourceWorkloadView
