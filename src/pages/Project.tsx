@@ -6,6 +6,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
 import { useUndoRedo, UndoableAction } from '@/hooks/useUndoRedo';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useFilterPresets, FilterPreset } from '@/hooks/useFilterPresets';
 import { TASK_COLOR_PRESETS } from '@/lib/taskColors';
 import { Task, ViewMode, DependencyType } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
@@ -35,6 +36,11 @@ export default function Project() {
     lastUndoDescription,
     lastRedoDescription
   } = useUndoRedo();
+
+  // Filter presets
+  const { presets: filterPresets, savePreset, deletePreset } = useFilterPresets({ 
+    projectId: projectId ?? '' 
+  });
 
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -306,6 +312,25 @@ export default function Project() {
       toast.success('Filters cleared');
     }
   }, [searchQuery, statusFilter, ownerFilter, colorFilter]);
+
+  // Filter preset handlers
+  const handleSavePreset = useCallback((name: string) => {
+    savePreset(name, { searchQuery, statusFilter, ownerFilter, colorFilter });
+    toast.success(`Saved preset "${name}"`);
+  }, [savePreset, searchQuery, statusFilter, ownerFilter, colorFilter]);
+
+  const handleApplyPreset = useCallback((preset: FilterPreset) => {
+    setSearchQuery(preset.searchQuery);
+    setStatusFilter(preset.statusFilter);
+    setOwnerFilter(preset.ownerFilter);
+    setColorFilter(preset.colorFilter);
+    toast.success(`Applied preset "${preset.name}"`);
+  }, []);
+
+  const handleDeletePreset = useCallback((presetId: string) => {
+    deletePreset(presetId);
+    toast.success('Preset deleted');
+  }, [deletePreset]);
 
   const handleBulkColorChange = useCallback(async (color: string | null) => {
     if (selectedTaskIds.size === 0) return;
@@ -599,6 +624,10 @@ export default function Project() {
               onRedo={handleRedo}
               undoDescription={lastUndoDescription}
               redoDescription={lastRedoDescription}
+              filterPresets={filterPresets}
+              onSavePreset={handleSavePreset}
+              onApplyPreset={handleApplyPreset}
+              onDeletePreset={handleDeletePreset}
             />
 
             <div className="mt-4">
