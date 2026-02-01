@@ -8,7 +8,7 @@ import { useUndoRedo, UndoableAction } from '@/hooks/useUndoRedo';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useFilterPresets, FilterPreset } from '@/hooks/useFilterPresets';
 import { TASK_COLOR_PRESETS } from '@/lib/taskColors';
-import { Task, ViewMode, DependencyType } from '@/types/gantt';
+import { Task, ViewMode, DependencyType, GroupByMode } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { GanttToolbar, DependencyBreakdown } from '@/components/gantt/GanttToolbar';
 import { TaskForm } from '@/components/gantt/TaskForm';
@@ -46,6 +46,7 @@ export default function Project() {
   });
 
   const [viewMode, setViewMode] = useState<ViewMode>('week');
+  const [groupBy, setGroupBy] = useState<GroupByMode>('none');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
   const [statusFilter, setStatusFilter] = useState('all');
@@ -681,6 +682,8 @@ export default function Project() {
             <GanttToolbar
               viewMode={viewMode}
               onViewModeChange={setViewMode}
+              groupBy={groupBy}
+              onGroupByChange={setGroupBy}
               onAddTask={handleAddTask}
               onExportPdf={handleExportPdf}
               onExportExcel={handleExportExcel}
@@ -720,6 +723,7 @@ export default function Project() {
                 tasks={filteredTasks}
                 dependencies={dependencies}
                 viewMode={viewMode}
+                groupBy={groupBy}
                 onTaskClick={handleTaskClick}
                 onToggleComplete={handleToggleComplete}
                 onAddTask={handleAddTask}
