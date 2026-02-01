@@ -1,203 +1,164 @@
 
 
-# User Guidance & Onboarding Hints for Gantt Chart
+# Task Color Presets and Themes
 
 ## Overview
 
-Add a step-by-step guidance system that helps users understand how to build a complete Gantt chart. The system will include contextual hints, an onboarding checklist, and helpful tooltips that appear based on the user's progress.
+This plan adds the ability for users to assign colors to individual tasks using preset color palettes, plus optional project-level theme support. This will make Gantt charts more visually organized and help users categorize tasks at a glance.
 
 ---
 
-## Feature Components
+## Current State
 
-### 1. Onboarding Checklist Panel
-
-A collapsible checklist that tracks the user's progress through creating a complete chart:
-
-**Checklist Steps:**
-- Create your first task
-- Set task dates (start and end)
-- Assign an owner to a task
-- Update task progress
-- Mark a task as complete
-- Create multiple tasks (3+)
-- Link tasks with dependencies (future feature)
-- Export your chart
-
-**Behavior:**
-- Shows at the top of the project page for new projects (0-2 tasks)
-- Can be dismissed/hidden by the user
-- Remembers user's preference (localStorage)
-- Shows completion percentage
-- Each step links to the relevant action
+- Tasks currently get colors based on status only (green for completed, blue for in-progress, grey for not started, red for overdue)
+- No `color` field exists on the `tasks` database table
+- The Task interface in `src/types/gantt.ts` has no color property
+- The `TaskForm` component handles task creation/editing but has no color picker
 
 ---
 
-### 2. Empty State Guidance
+## Implementation Scope
 
-When users first open a project with no tasks, display helpful guidance:
+### Part 1: Task Color Presets (Core Feature)
 
-**Content:**
-- Welcome message with quick tips
-- Large call-to-action to create first task
-- Brief explanation of what a Gantt chart does
-- Visual preview of what a completed chart looks like
+Allow users to assign one of several preset colors to each task.
 
----
+#### Database Changes
+Add a `color` column to the `tasks` table:
+- Type: `text` (nullable)
+- Default: `null` (uses status-based coloring when not set)
+- Values: Store color preset keys like `'blue'`, `'green'`, `'purple'`, `'orange'`, `'pink'`, `'teal'`, `'yellow'`, `'red'`
 
-### 3. Contextual Tooltips
+#### Color Palette Definition
+Create a shared color constants file with preset definitions:
 
-Add helpful tooltips to key UI elements:
+```text
+Preset Colors (8-10 options):
++----------+-----------------+------------------+
+| Key      | Bar Color       | Foreground       |
++----------+-----------------+------------------+
+| blue     | bg-blue-500     | text-white       |
+| green    | bg-green-500    | text-white       |
+| purple   | bg-purple-500   | text-white       |
+| orange   | bg-orange-500   | text-white       |
+| pink     | bg-pink-500     | text-white       |
+| teal     | bg-teal-500     | text-white       |
+| yellow   | bg-yellow-500   | text-black       |
+| red      | bg-red-500      | text-white       |
+| indigo   | bg-indigo-500   | text-white       |
+| gray     | bg-gray-500     | text-white       |
++----------+-----------------+------------------+
+```
 
-| Element | Tooltip Message |
-|---------|-----------------|
-| Add Task button | "Start by adding tasks with names and dates" |
-| View toggle (Day/Week/Month) | "Switch views to see your timeline at different scales" |
-| Task checkbox | "Click to mark tasks as complete" |
-| Task bar on chart | "Click to edit task details, drag edges to resize" |
-| Status filter | "Filter tasks by their current status" |
-| Owner filter | "Filter tasks by assigned team member" |
-| Export button | "Generate professional reports in PDF, Excel, or Word" |
-| Progress panel | "Track your project completion and upcoming deadlines" |
+#### UI Changes
 
----
+1. **TaskForm Component** - Add a color picker section:
+   - Display as a row of clickable color swatches
+   - Include a "Default" option that clears the color (uses status-based)
+   - Show a check mark or ring on the selected color
 
-### 4. Inline Hints in Empty Areas
+2. **GanttChart Component** - Update `getStatusColor` function:
+   - If `task.color` is set, use the preset color
+   - Otherwise, fall back to existing status-based logic
 
-When specific areas are empty, show contextual help:
-
-**Empty Task List:**
-- "No tasks yet - Click 'Add Task' to get started"
-- Shows a pulsing indicator pointing to Add Task button
-
-**Empty Owners Filter:**
-- "Add owners to tasks to filter by team member"
-
-**No Dependencies (future):**
-- "Link tasks together to create sequences"
-
----
-
-### 5. First-Time Task Form Hints
-
-Enhance the task creation form with helper text:
-
-**Field Hints:**
-- Task Name: "Give your task a clear, descriptive name"
-- Dates: "Tasks appear on the timeline based on these dates"
-- Status: "Track progress from 'Not Started' to 'Completed'"
-- Owner: "Assign responsibility to team members"
-- Progress: "Update as work progresses (0-100%)"
+3. **ProgressPanel** - Update task list to show color indicators
 
 ---
 
-### 6. Interactive Feature Discovery
+### Part 2: Project Themes (Optional Enhancement)
 
-Add subtle animations/highlights for new users:
+Allow users to select a theme that changes the overall color palette for task bars.
 
-- Pulse animation on "Add Task" button for empty projects
-- Gentle highlight on the Gantt chart area when first task is created
-- Toast notification celebrating milestones ("First task created!", "Great progress!")
+#### Approach A: Project-Level Default Color Scheme
+- Add `theme` column to `projects` table
+- Themes define which status maps to which color
+- Example themes: "Classic", "Ocean", "Forest", "Sunset"
+
+#### Approach B: CSS Variable Overrides
+- Store theme preference in project settings
+- Apply CSS class that overrides task bar colors globally
 
 ---
 
-## Technical Implementation
+## Technical Details
 
-### New Files to Create
+### Files to Create
 
-1. **`src/components/gantt/OnboardingChecklist.tsx`**
-   - Collapsible checklist component
-   - Tracks completion via props (task count, has owner, etc.)
-   - Dismissible with localStorage persistence
-
-2. **`src/components/gantt/GettingStartedGuide.tsx`**
-   - Empty state component for new projects
-   - Visual guide with illustrations
-   - Quick action buttons
-
-3. **`src/hooks/useOnboardingProgress.ts`**
-   - Hook to calculate onboarding progress
-   - Tracks which steps are completed
-   - Manages localStorage for dismissed state
+| File | Purpose |
+|------|---------|
+| `src/lib/taskColors.ts` | Color preset definitions and helper functions |
 
 ### Files to Modify
 
-1. **`src/pages/Project.tsx`**
-   - Add OnboardingChecklist component
-   - Pass task data to calculate progress
-   - Handle dismiss action
+| File | Changes |
+|------|---------|
+| `src/types/gantt.ts` | Add `color?: string` to Task interface |
+| `src/components/gantt/TaskForm.tsx` | Add color picker UI |
+| `src/components/gantt/GanttChart.tsx` | Update `getStatusColor` to use custom colors |
+| `src/components/gantt/ProgressPanel.tsx` | Show color indicators on task list |
 
-2. **`src/components/gantt/GanttChart.tsx`**
-   - Enhance empty state with GettingStartedGuide
-   - Add tooltips to task bars
+### Database Migration
 
-3. **`src/components/gantt/GanttToolbar.tsx`**
-   - Wrap buttons with Tooltip components
-   - Add pulse animation for empty projects
-
-4. **`src/components/gantt/TaskForm.tsx`**
-   - Add helper text under form fields
-   - Show tips for first-time users
-
-5. **`src/components/gantt/ProgressPanel.tsx`**
-   - Add tooltip to panel header
-   - Show helpful message when all stats are zero
-
----
-
-## User Experience Flow
-
-```text
-1. User creates new project
-          │
-          ▼
-2. Sees welcome guide + empty Gantt chart
-   with pulsing "Add Task" button
-          │
-          ▼
-3. Onboarding checklist appears (minimized)
-   showing 0% complete
-          │
-          ▼
-4. User clicks "Add Task"
-          │
-          ▼
-5. Task form shows with helpful field hints
-          │
-          ▼
-6. First task created → Toast: "Great start!"
-   Checklist updates (1/8 complete)
-          │
-          ▼
-7. User continues adding tasks, owners, etc.
-          │
-          ▼
-8. Checklist completes → Can be dismissed
-          │
-          ▼
-9. Experienced user returns → No checklist shown
+```sql
+ALTER TABLE public.tasks 
+ADD COLUMN color text DEFAULT NULL;
 ```
 
 ---
 
-## Visual Design
+## Color Picker UI Design
 
-- Professional, unobtrusive styling
-- Muted colors for hints (not distracting)
-- Smooth fade-in/out animations
-- Consistent with existing corporate design
-- Tooltips use existing Tooltip component from shadcn/ui
+The color picker in TaskForm will appear as:
+
+```text
+Color
++-----------------------------------------------+
+| [Default] [O] [O] [O] [O] [O] [O] [O] [O]     |
++-----------------------------------------------+
+Assign a color to visually categorize this task
+```
+
+- Each `[O]` is a colored circle (20x20px)
+- Selected color shows a white checkmark or ring
+- "Default" is a grey circle with a slash or "Auto" label
+- Hover shows tooltip with color name
+
+---
+
+## Behavior
+
+1. **New Tasks**: Default to `null` (status-based coloring)
+2. **Existing Tasks**: Continue using status colors until user assigns one
+3. **Overdue Logic**: Custom colors still respect overdue styling (optional: add a warning badge instead of changing color)
+4. **Status Change**: Custom color persists even when status changes
+
+---
+
+## Migration Strategy
+
+- The new `color` column is nullable with no default
+- Existing tasks remain unchanged and continue using status-based colors
+- No data migration needed
+
+---
+
+## Future Enhancements (Not in This Plan)
+
+- Custom hex color picker (beyond presets)
+- Color-based filtering in the toolbar
+- Color legends/keys
+- Category tags that auto-assign colors
+- Dark mode color variants
 
 ---
 
 ## Summary
 
-This guidance system will help new users understand how to:
-1. Create and manage tasks
-2. Use the timeline visualization effectively
-3. Track progress and deadlines
-4. Utilize all available features
-5. Export their completed charts
+This implementation adds a simple but powerful visual organization feature by:
+1. Adding a `color` column to the tasks table
+2. Creating a color presets system with 8-10 predefined options
+3. Adding a color picker to the task form
+4. Updating the Gantt chart to render custom colors
 
-All guidance can be dismissed and won't interfere with experienced users.
+The approach keeps things simple (preset colors only) while leaving room for expansion (custom colors, themes) in the future.
 
