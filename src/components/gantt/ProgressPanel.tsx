@@ -1,10 +1,12 @@
 import { Task } from '@/types/gantt';
+import { getTaskColorPreset } from '@/lib/taskColors';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { format, isBefore, startOfDay, addDays } from 'date-fns';
 import { AlertTriangle, CheckCircle, Clock, Calendar, HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 interface ProgressPanelProps {
   tasks: Task[];
@@ -103,14 +105,25 @@ export function ProgressPanel({ tasks }: ProgressPanelProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {overdueTasks.slice(0, 5).map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-2 bg-destructive/5 rounded">
-                  <span className="text-sm font-medium truncate">{task.name}</span>
-                  <Badge variant="destructive" className="text-xs">
-                    Due {format(new Date(task.end_date), 'MMM d')}
-                  </Badge>
-                </div>
-              ))}
+              {overdueTasks.slice(0, 5).map((task) => {
+                const colorPreset = getTaskColorPreset(task.color);
+                return (
+                  <div key={task.id} className="flex items-center justify-between p-2 bg-destructive/5 rounded">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {colorPreset && (
+                        <div 
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
+                          style={{ backgroundColor: colorPreset.swatchColor }}
+                        />
+                      )}
+                      <span className="text-sm font-medium truncate">{task.name}</span>
+                    </div>
+                    <Badge variant="destructive" className="text-xs flex-shrink-0">
+                      Due {format(new Date(task.end_date), 'MMM d')}
+                    </Badge>
+                  </div>
+                );
+              })}
               {overdueTasks.length > 5 && (
                 <p className="text-xs text-muted-foreground text-center">
                   +{overdueTasks.length - 5} more
@@ -138,14 +151,25 @@ export function ProgressPanel({ tasks }: ProgressPanelProps) {
               </p>
             ) : (
               <>
-                {upcomingTasks.slice(0, 5).map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                    <span className="text-sm font-medium truncate">{task.name}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {format(new Date(task.end_date), 'MMM d')}
-                    </Badge>
-                  </div>
-                ))}
+                {upcomingTasks.slice(0, 5).map((task) => {
+                  const colorPreset = getTaskColorPreset(task.color);
+                  return (
+                    <div key={task.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {colorPreset && (
+                          <div 
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: colorPreset.swatchColor }}
+                          />
+                        )}
+                        <span className="text-sm font-medium truncate">{task.name}</span>
+                      </div>
+                      <Badge variant="outline" className="text-xs flex-shrink-0">
+                        {format(new Date(task.end_date), 'MMM d')}
+                      </Badge>
+                    </div>
+                  );
+                })}
                 {upcomingTasks.length > 5 && (
                   <p className="text-xs text-muted-foreground text-center">
                     +{upcomingTasks.length - 5} more
@@ -173,15 +197,26 @@ export function ProgressPanel({ tasks }: ProgressPanelProps) {
                 {isEmpty ? "Set task status to 'In Progress' to track active work" : "No tasks in progress"}
               </p>
             ) : (
-              inProgressTasks.slice(0, 5).map((task) => (
-                <div key={task.id} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium truncate">{task.name}</span>
-                    <span className="text-xs text-muted-foreground">{task.progress}%</span>
+              inProgressTasks.slice(0, 5).map((task) => {
+                const colorPreset = getTaskColorPreset(task.color);
+                return (
+                  <div key={task.id} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {colorPreset && (
+                          <div 
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: colorPreset.swatchColor }}
+                          />
+                        )}
+                        <span className="text-sm font-medium truncate">{task.name}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{task.progress}%</span>
+                    </div>
+                    <Progress value={task.progress} className="h-1" />
                   </div>
-                  <Progress value={task.progress} className="h-1" />
-                </div>
-              ))
+                );
+              })
             )}
           </CardContent>
         </Card>
@@ -196,12 +231,24 @@ export function ProgressPanel({ tasks }: ProgressPanelProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              {completedTasks.slice(0, 3).map((task) => (
-                <div key={task.id} className="flex items-center gap-2 p-2 bg-green-500/5 rounded">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm truncate line-through text-muted-foreground">{task.name}</span>
-                </div>
-              ))}
+              {completedTasks.slice(0, 3).map((task) => {
+                const colorPreset = getTaskColorPreset(task.color);
+                return (
+                  <div key={task.id} className="flex items-center gap-2 p-2 bg-green-500/5 rounded">
+                    {colorPreset ? (
+                      <div 
+                        className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center" 
+                        style={{ backgroundColor: colorPreset.swatchColor }}
+                      >
+                        <CheckCircle className="h-3 w-3 text-white" />
+                      </div>
+                    ) : (
+                      <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    )}
+                    <span className="text-sm truncate line-through text-muted-foreground">{task.name}</span>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         )}

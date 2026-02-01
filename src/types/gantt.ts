@@ -25,6 +25,7 @@ export interface Task {
   owner: string | null;
   progress: number;
   sort_order: number;
+  color: string | null;
   created_at: string;
   updated_at: string;
 }

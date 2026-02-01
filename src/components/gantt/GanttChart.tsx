@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useRef } from 'react';
 import { Task, TaskDependency, ViewMode, DependencyType } from '@/types/gantt';
+import { getTaskColorPreset } from '@/lib/taskColors';
 import { format, differenceInDays, addDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isToday, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -156,6 +157,13 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
   };
 
   const getStatusColor = (task: Task) => {
+    // If task has a custom color, use it
+    const customColor = getTaskColorPreset(task.color);
+    if (customColor) {
+      return customColor.bgClass;
+    }
+
+    // Otherwise fall back to status-based coloring
     const today = startOfDay(new Date());
     const taskEndDate = startOfDay(new Date(task.end_date));
     const isOverdue = isBefore(taskEndDate, today) && task.status !== 'completed';
