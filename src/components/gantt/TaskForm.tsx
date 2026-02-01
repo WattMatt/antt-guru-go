@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Task, TaskStatus } from '@/types/gantt';
+import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TaskFormProps {
@@ -33,6 +35,7 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'not_started');
   const [owner, setOwner] = useState(task?.owner ?? '');
   const [progress, setProgress] = useState(task?.progress ?? 0);
+  const [color, setColor] = useState<string | null>(task?.color ?? null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +53,8 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
       status,
       owner: owner.trim() || null,
       progress,
-      sort_order: task?.sort_order ?? 0
+      sort_order: task?.sort_order ?? 0,
+      color
     });
   };
 
@@ -62,9 +66,11 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
     setStatus('not_started');
     setOwner('');
     setProgress(0);
+    setColor(null);
   };
 
   return (
+    <TooltipProvider delayDuration={300}>
     <Dialog open={open} onOpenChange={(newOpen) => {
       onOpenChange(newOpen);
       if (!newOpen && !task) resetForm();
@@ -207,6 +213,63 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
                 Update as work progresses (0-100%)
               </p>
             </div>
+
+            {/* Color Picker */}
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex flex-wrap gap-2">
+                {/* Default/Auto option */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setColor(null)}
+                      className={cn(
+                        "w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all",
+                        color === null 
+                          ? "border-primary ring-2 ring-primary/30" 
+                          : "border-muted-foreground/30 hover:border-muted-foreground/50"
+                      )}
+                      style={{ background: 'linear-gradient(135deg, #e5e7eb 50%, #9ca3af 50%)' }}
+                    >
+                      {color === null && <X className="h-3 w-3 text-muted-foreground" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Auto (uses status color)</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Color presets */}
+                {TASK_COLOR_PRESETS.map((preset) => (
+                  <Tooltip key={preset.key}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setColor(preset.key)}
+                        className={cn(
+                          "w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all",
+                          color === preset.key 
+                            ? "border-primary ring-2 ring-primary/30" 
+                            : "border-transparent hover:scale-110"
+                        )}
+                        style={{ backgroundColor: preset.swatchColor }}
+                      >
+                        {color === preset.key && (
+                          <Check className={cn("h-3.5 w-3.5", preset.textClass)} />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{preset.label}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Assign a color to visually categorize this task
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -220,5 +283,6 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
         </form>
       </DialogContent>
     </Dialog>
+    </TooltipProvider>
   );
 }
