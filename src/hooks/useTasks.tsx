@@ -149,6 +149,47 @@ export function useTasks(projectId: string | undefined) {
     }
   });
 
+  const bulkUpdateTasks = useMutation({
+    mutationFn: async ({ ids, updates }: { ids: string[]; updates: Partial<Task> }) => {
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          const { data, error } = await supabase
+            .from('tasks')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+          if (error) throw error;
+          return data as Task;
+        })
+      );
+      return results;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+    }
+  });
+
+  const bulkDeleteTasks = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(
+        ids.map(async (id) => {
+          const { error } = await supabase
+            .from('tasks')
+            .delete()
+            .eq('id', id);
+
+          if (error) throw error;
+        })
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['dependencies', projectId] });
+    }
+  });
+
   return {
     tasks: tasksQuery.data ?? [],
     dependencies: dependenciesQuery.data ?? [],
@@ -160,6 +201,8 @@ export function useTasks(projectId: string | undefined) {
     createDependency,
     updateDependency,
     deleteDependency,
-    toggleTaskStatus
+    toggleTaskStatus,
+    bulkUpdateTasks,
+    bulkDeleteTasks
   };
 }
