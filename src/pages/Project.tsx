@@ -22,7 +22,7 @@ export default function Project() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { projects } = useProjects();
-  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency, bulkUpdateTasks, bulkDeleteTasks, reorderTasks } = useTasks(projectId);
+  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency, bulkUpdateTasks, bulkDeleteTasks, reorderTasks, duplicateTask } = useTasks(projectId);
   
   // Undo/Redo functionality
   const {
@@ -321,6 +321,16 @@ export default function Project() {
     }
   }, [reorderTasks, tasks]);
 
+  // Duplicate task handler
+  const handleDuplicateTask = useCallback(async (task: Task) => {
+    try {
+      await duplicateTask.mutateAsync(task);
+      toast.success(`Duplicated "${task.name}"`);
+    } catch (error) {
+      toast.error('Failed to duplicate task');
+    }
+  }, [duplicateTask]);
+
   // Undo handler
   const handleUndo = useCallback(async () => {
     const action = popUndo();
@@ -583,6 +593,7 @@ export default function Project() {
         open={isTaskFormOpen}
         onOpenChange={setIsTaskFormOpen}
         onSubmit={handleTaskSubmit}
+        onDuplicate={handleDuplicateTask}
         projectId={projectId!}
         task={selectedTask}
         isLoading={createTask.isPending || updateTask.isPending}

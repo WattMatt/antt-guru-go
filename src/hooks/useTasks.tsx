@@ -223,6 +223,43 @@ export function useTasks(projectId: string | undefined) {
     }
   });
 
+  const duplicateTask = useMutation({
+    mutationFn: async (task: Task) => {
+      // Get the current max sort_order for proper positioning
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('sort_order')
+        .eq('project_id', task.project_id)
+        .order('sort_order', { ascending: false })
+        .limit(1);
+
+      const maxSortOrder = tasks?.[0]?.sort_order ?? 0;
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert({
+          project_id: task.project_id,
+          name: `${task.name} (Copy)`,
+          description: task.description,
+          start_date: task.start_date,
+          end_date: task.end_date,
+          status: 'not_started',
+          owner: task.owner,
+          progress: 0,
+          sort_order: maxSortOrder + 1,
+          color: task.color
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Task;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+    }
+  });
+
   return {
     tasks: tasksQuery.data ?? [],
     dependencies: dependenciesQuery.data ?? [],
@@ -237,6 +274,7 @@ export function useTasks(projectId: string | undefined) {
     toggleTaskStatus,
     bulkUpdateTasks,
     bulkDeleteTasks,
-    reorderTasks
+    reorderTasks,
+    duplicateTask
   };
 }
