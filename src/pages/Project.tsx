@@ -297,11 +297,15 @@ export default function Project() {
   }, []);
 
   const handleClearFilters = useCallback(() => {
+    const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0;
     setSearchQuery('');
     setStatusFilter('all');
     setOwnerFilter('all');
     setColorFilter([]);
-  }, []);
+    if (hasActiveFilters) {
+      toast.success('Filters cleared');
+    }
+  }, [searchQuery, statusFilter, ownerFilter, colorFilter]);
 
   const handleBulkColorChange = useCallback(async (color: string | null) => {
     if (selectedTaskIds.size === 0) return;
