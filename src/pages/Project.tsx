@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
@@ -51,6 +51,8 @@ export default function Project() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showProgress, setShowProgress] = useState(true);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const project = projects.find(p => p.id === projectId);
 
@@ -514,6 +516,12 @@ export default function Project() {
     return shortcuts;
   }, [selectedTaskIds.size, handleBulkColorChange]);
 
+  // Focus search handler
+  const handleFocusSearch = useCallback(() => {
+    searchInputRef.current?.focus();
+    searchInputRef.current?.select();
+  }, []);
+
   // Keyboard shortcuts
   useKeyboardShortcuts({
     shortcuts: [
@@ -521,6 +529,8 @@ export default function Project() {
       { key: 'y', ctrlKey: true, handler: handleRedo, description: 'Redo' },
       { key: 'z', ctrlKey: true, shiftKey: true, handler: handleRedo, description: 'Redo (alternative)' },
       { key: 'Escape', handler: handleClearFilters, description: 'Clear all filters' },
+      { key: 'f', ctrlKey: true, handler: handleFocusSearch, description: 'Focus search' },
+      { key: '/', handler: handleFocusSearch, description: 'Focus search (alternative)' },
       // Color shortcuts only active when tasks are selected
       ...colorShortcuts
     ]
@@ -628,6 +638,7 @@ export default function Project() {
               onSavePreset={handleSavePreset}
               onApplyPreset={handleApplyPreset}
               onDeletePreset={handleDeletePreset}
+              searchInputRef={searchInputRef}
             />
 
             <div className="mt-4">
