@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond, Image, CalendarDays, Printer } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond, Image, CalendarDays, Printer, Route } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 export interface DependencyBreakdown {
   finish_to_start: number;
@@ -70,6 +71,10 @@ interface GanttToolbarProps {
   onApplyPreset?: (preset: FilterPreset) => void;
   onDeletePreset?: (presetId: string) => void;
   searchInputRef?: React.RefObject<HTMLInputElement>;
+  // Critical path
+  showCriticalPath?: boolean;
+  onShowCriticalPathChange?: (show: boolean) => void;
+  criticalPathCount?: number;
 }
 
 export function GanttToolbar({
@@ -114,7 +119,10 @@ export function GanttToolbar({
   onSavePreset,
   onApplyPreset,
   onDeletePreset,
-  searchInputRef
+  searchInputRef,
+  showCriticalPath = false,
+  onShowCriticalPathChange,
+  criticalPathCount = 0
 }: GanttToolbarProps) {
   const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
   const [presetName, setPresetName] = useState('');
@@ -366,6 +374,37 @@ export function GanttToolbar({
               <p>{getBreakdownText()}</p>
             </TooltipContent>
           </Tooltip>
+          )}
+
+          {/* Critical Path Toggle - only show when dependencies exist */}
+          {dependencyCount > 0 && onShowCriticalPathChange && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showCriticalPath ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onShowCriticalPathChange(!showCriticalPath)}
+                  className={cn(
+                    "gap-1.5",
+                    showCriticalPath && "bg-orange-500 hover:bg-orange-600 text-white"
+                  )}
+                >
+                  <Route className="h-4 w-4" />
+                  <span className="hidden md:inline">Critical Path</span>
+                  {showCriticalPath && criticalPathCount > 0 && (
+                    <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-white/20 text-xs font-medium">
+                      {criticalPathCount}
+                    </span>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{showCriticalPath 
+                  ? `Showing ${criticalPathCount} tasks on critical path` 
+                  : 'Show the longest sequence of dependent tasks'
+                }</p>
+              </TooltipContent>
+            </Tooltip>
           )}
 
           <ColorLegend />

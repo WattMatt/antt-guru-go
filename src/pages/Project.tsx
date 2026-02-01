@@ -10,6 +10,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useFilterPresets, FilterPreset } from '@/hooks/useFilterPresets';
 import { useChartExport } from '@/hooks/useChartExport';
 import { TASK_COLOR_PRESETS } from '@/lib/taskColors';
+import { calculateCriticalPath } from '@/lib/criticalPath';
 import { Task, ViewMode, DependencyType, GroupByMode } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { GanttToolbar, DependencyBreakdown } from '@/components/gantt/GanttToolbar';
@@ -67,6 +68,7 @@ export default function Project() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [showConfetti, setShowConfetti] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showCriticalPath, setShowCriticalPath] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -105,6 +107,14 @@ export default function Project() {
       } as DependencyBreakdown
     );
   }, [dependencies]);
+
+  // Calculate critical path
+  const criticalPathTaskIds = useMemo(() => {
+    if (!showCriticalPath || dependencies.length === 0) {
+      return new Set<string>();
+    }
+    return calculateCriticalPath(tasks, dependencies);
+  }, [tasks, dependencies, showCriticalPath]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -810,6 +820,9 @@ export default function Project() {
                 onApplyPreset={handleApplyPreset}
                 onDeletePreset={handleDeletePreset}
                 searchInputRef={searchInputRef}
+                showCriticalPath={showCriticalPath}
+                onShowCriticalPathChange={setShowCriticalPath}
+                criticalPathCount={criticalPathTaskIds.size}
               />
             </div>
 
@@ -833,6 +846,7 @@ export default function Project() {
                 onSelectAll={handleSelectAll}
                 onReorderTask={handleReorderTask}
                 searchQuery={searchQuery}
+                criticalPathTaskIds={criticalPathTaskIds}
               />
             </div>
           </div>
