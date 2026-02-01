@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth, addMonths } from 'date-fns';
-import { ViewMode, DependencyType, GroupByMode } from '@/types/gantt';
+import { ViewMode, DependencyType, GroupByMode, ChartViewType } from '@/types/gantt';
 import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { FilterPreset } from '@/hooks/useFilterPresets';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond, Image, CalendarDays, Printer, Route } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond, Image, CalendarDays, Printer, Route, BarChart3, Users } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -29,6 +29,8 @@ export interface DependencyBreakdown {
 interface GanttToolbarProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  chartViewType: ChartViewType;
+  onChartViewTypeChange: (type: ChartViewType) => void;
   groupBy: GroupByMode;
   onGroupByChange: (mode: GroupByMode) => void;
   onAddTask: () => void;
@@ -80,6 +82,8 @@ interface GanttToolbarProps {
 export function GanttToolbar({
   viewMode,
   onViewModeChange,
+  chartViewType,
+  onChartViewTypeChange,
   groupBy,
   onGroupByChange,
   onAddTask,
@@ -408,6 +412,30 @@ export function GanttToolbar({
           )}
 
           <ColorLegend />
+
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
+          {/* Chart View Toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground hidden md:inline">Chart:</span>
+                <ToggleGroup type="single" value={chartViewType} onValueChange={(value) => value && onChartViewTypeChange(value as ChartViewType)}>
+                  <ToggleGroupItem value="gantt" aria-label="Gantt chart view">
+                    <BarChart3 className="h-4 w-4 mr-1" />
+                    <span className="hidden md:inline">Gantt</span>
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="resources" aria-label="Resource workload view">
+                    <Users className="h-4 w-4 mr-1" />
+                    <span className="hidden md:inline">Resources</span>
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{chartViewType === 'gantt' ? 'Viewing Gantt chart' : 'Viewing resource workload'}</p>
+            </TooltipContent>
+          </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>

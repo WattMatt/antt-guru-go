@@ -11,8 +11,9 @@ import { useFilterPresets, FilterPreset } from '@/hooks/useFilterPresets';
 import { useChartExport } from '@/hooks/useChartExport';
 import { TASK_COLOR_PRESETS } from '@/lib/taskColors';
 import { calculateCriticalPath } from '@/lib/criticalPath';
-import { Task, ViewMode, DependencyType, GroupByMode } from '@/types/gantt';
+import { Task, ViewMode, DependencyType, GroupByMode, ChartViewType } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
+import { ResourceWorkloadView } from '@/components/gantt/ResourceWorkloadView';
 import { GanttToolbar, DependencyBreakdown } from '@/components/gantt/GanttToolbar';
 import { TaskForm } from '@/components/gantt/TaskForm';
 import { MilestoneForm } from '@/components/gantt/MilestoneForm';
@@ -53,6 +54,7 @@ export default function Project() {
   });
 
   const [viewMode, setViewMode] = useState<ViewMode>('week');
+  const [chartViewType, setChartViewType] = useState<ChartViewType>('gantt');
   const [groupBy, setGroupBy] = useState<GroupByMode>('none');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isMilestoneFormOpen, setIsMilestoneFormOpen] = useState(false);
@@ -780,6 +782,8 @@ export default function Project() {
               <GanttToolbar
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
+                chartViewType={chartViewType}
+                onChartViewTypeChange={setChartViewType}
                 groupBy={groupBy}
                 onGroupByChange={setGroupBy}
                 onAddTask={handleAddTask}
@@ -827,27 +831,35 @@ export default function Project() {
             </div>
 
             <div className="mt-4 print-container" ref={chartRef}>
-              <GanttChart
-                tasks={filteredTasks}
-                dependencies={dependencies}
-                milestones={milestones}
-                viewMode={viewMode}
-                groupBy={groupBy}
-                onTaskClick={handleTaskClick}
-                onToggleComplete={handleToggleComplete}
-                onAddTask={handleAddTask}
-                onTaskDateChange={handleTaskDateChange}
-                onCreateDependency={handleCreateDependency}
-                onUpdateDependency={handleUpdateDependency}
-                onDeleteDependency={handleDeleteDependency}
-                onMilestoneClick={handleMilestoneClick}
-                selectedTaskIds={selectedTaskIds}
-                onTaskSelect={handleTaskSelect}
-                onSelectAll={handleSelectAll}
-                onReorderTask={handleReorderTask}
-                searchQuery={searchQuery}
-                criticalPathTaskIds={criticalPathTaskIds}
-              />
+              {chartViewType === 'gantt' ? (
+                <GanttChart
+                  tasks={filteredTasks}
+                  dependencies={dependencies}
+                  milestones={milestones}
+                  viewMode={viewMode}
+                  groupBy={groupBy}
+                  onTaskClick={handleTaskClick}
+                  onToggleComplete={handleToggleComplete}
+                  onAddTask={handleAddTask}
+                  onTaskDateChange={handleTaskDateChange}
+                  onCreateDependency={handleCreateDependency}
+                  onUpdateDependency={handleUpdateDependency}
+                  onDeleteDependency={handleDeleteDependency}
+                  onMilestoneClick={handleMilestoneClick}
+                  selectedTaskIds={selectedTaskIds}
+                  onTaskSelect={handleTaskSelect}
+                  onSelectAll={handleSelectAll}
+                  onReorderTask={handleReorderTask}
+                  searchQuery={searchQuery}
+                  criticalPathTaskIds={criticalPathTaskIds}
+                />
+              ) : (
+                <ResourceWorkloadView
+                  tasks={filteredTasks}
+                  viewMode={viewMode}
+                  onTaskClick={handleTaskClick}
+                />
+              )}
             </div>
           </div>
 
