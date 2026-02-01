@@ -548,6 +548,24 @@ export default function Project() {
     searchInputRef.current?.select();
   }, []);
 
+  // Select all visible tasks handler
+  const handleSelectAllVisible = useCallback(() => {
+    if (filteredTasks.length === 0) return;
+    
+    const allFilteredIds = new Set(filteredTasks.map(t => t.id));
+    const allSelected = filteredTasks.every(t => selectedTaskIds.has(t.id));
+    
+    if (allSelected) {
+      // Deselect all if all are already selected
+      setSelectedTaskIds(new Set());
+      toast.success('Deselected all tasks');
+    } else {
+      // Select all visible tasks
+      setSelectedTaskIds(allFilteredIds);
+      toast.success(`Selected ${filteredTasks.length} task${filteredTasks.length !== 1 ? 's' : ''}`);
+    }
+  }, [filteredTasks, selectedTaskIds]);
+
   // Keyboard shortcuts
   useKeyboardShortcuts({
     shortcuts: [
@@ -557,6 +575,7 @@ export default function Project() {
       { key: 'Escape', handler: handleClearFilters, description: 'Clear all filters' },
       { key: 'f', ctrlKey: true, handler: handleFocusSearch, description: 'Focus search' },
       { key: '/', handler: handleFocusSearch, description: 'Focus search (alternative)' },
+      { key: 'a', ctrlKey: true, handler: handleSelectAllVisible, description: 'Select all visible tasks' },
       // Color shortcuts only active when tasks are selected
       ...colorShortcuts
     ]
