@@ -290,6 +290,12 @@ export default function Project() {
     setSelectedTaskIds(new Set());
   }, []);
 
+  const handleClearFilters = useCallback(() => {
+    setStatusFilter('all');
+    setOwnerFilter('all');
+    setColorFilter('all');
+  }, []);
+
   const handleBulkColorChange = useCallback(async (color: string | null) => {
     if (selectedTaskIds.size === 0) return;
     
@@ -567,6 +573,7 @@ export default function Project() {
               onOwnerFilterChange={setOwnerFilter}
               colorFilter={colorFilter}
               onColorFilterChange={setColorFilter}
+              onClearFilters={handleClearFilters}
               owners={owners}
               isEmpty={tasks.length === 0}
               dependencyCount={dependencies.length}

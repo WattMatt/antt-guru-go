@@ -3,7 +3,7 @@ import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -31,6 +31,7 @@ interface GanttToolbarProps {
   onOwnerFilterChange: (owner: string) => void;
   colorFilter: string;
   onColorFilterChange: (color: string) => void;
+  onClearFilters?: () => void;
   owners: string[];
   isEmpty?: boolean;
   dependencyCount?: number;
@@ -58,6 +59,7 @@ export function GanttToolbar({
   onOwnerFilterChange,
   colorFilter,
   onColorFilterChange,
+  onClearFilters,
   owners,
   isEmpty = false,
   dependencyCount = 0,
@@ -412,6 +414,26 @@ export function GanttToolbar({
               <p>Filter tasks by assigned color</p>
             </TooltipContent>
           </Tooltip>
+
+          {/* Clear Filters button - only show when filters are active */}
+          {(statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter !== 'all') && onClearFilters && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={onClearFilters}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Reset all filters</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
