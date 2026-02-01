@@ -274,6 +274,22 @@ export default function Project() {
     toast.info('Word export coming soon!');
   };
 
+  const handleExportCalendar = () => {
+    try {
+      if (tasks.length === 0 && milestones.length === 0) {
+        toast.error('No tasks or milestones to export');
+        return;
+      }
+      
+      import('@/lib/calendarExport').then(({ exportToCalendar }) => {
+        exportToCalendar(tasks, milestones, project?.name ?? 'project');
+        toast.success('Calendar file downloaded!');
+      });
+    } catch (error) {
+      toast.error('Failed to export calendar');
+    }
+  };
+
   const handleCreateDependency = async (predecessorId: string, successorId: string, dependencyType: DependencyType) => {
     try {
       const newDep = await createDependency.mutateAsync({
@@ -741,6 +757,7 @@ export default function Project() {
               onExportJpeg={exportAsJpeg}
               onExportExcel={handleExportExcel}
               onExportWord={handleExportWord}
+              onExportCalendar={handleExportCalendar}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
               ownerFilter={ownerFilter}
