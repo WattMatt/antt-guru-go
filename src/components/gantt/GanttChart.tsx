@@ -33,6 +33,7 @@ interface GanttChartProps {
   onSelectAll?: (selected: boolean) => void;
   onReorderTask?: (taskId: string, newIndex: number) => void;
   searchQuery?: string;
+  criticalPathTaskIds?: Set<string>;
 }
 
 interface TaskGroup {
@@ -84,7 +85,8 @@ export function GanttChart({
   onTaskSelect,
   onSelectAll,
   onReorderTask,
-  searchQuery
+  searchQuery,
+  criticalPathTaskIds = new Set()
 }: GanttChartProps) {
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
@@ -647,6 +649,7 @@ export function GanttChart({
                     const isLinkSource = linkSourceTaskId === task.id;
                     const isLinkTarget = linkTargetTaskId === task.id;
                     const isValidDropTarget = isLinkDragging && !isLinkSource && linkSourceTaskId !== task.id;
+                    const isOnCriticalPath = criticalPathTaskIds.has(task.id);
 
                     // Calculate row position for dependency link handle
                     let rowOffset = 0;
@@ -681,7 +684,8 @@ export function GanttChart({
                                 getStatusColor(task),
                                 isBeingDragged ? "shadow-lg ring-2 ring-primary/50 z-20" : "hover:shadow-md",
                                 (isDragging || isLinkDragging) && !isBeingDragged && !isLinkSource && !isLinkTarget && "opacity-50",
-                                isLinkTarget && "ring-2 ring-primary shadow-lg z-20"
+                                isLinkTarget && "ring-2 ring-primary shadow-lg z-20",
+                                isOnCriticalPath && "ring-2 ring-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"
                               )}
                               style={{
                                 left: position.left,
@@ -767,6 +771,9 @@ export function GanttChart({
                               <p className="font-medium">{task.name}</p>
                               <p>{format(new Date(task.start_date), 'MMM d')} - {format(new Date(task.end_date), 'MMM d')}</p>
                               <p>Progress: {task.progress}%</p>
+                              {isOnCriticalPath && (
+                                <p className="text-orange-400 font-medium">⚡ On Critical Path</p>
+                              )}
                               <p className="text-muted-foreground">Drag to move • Drag edges to resize • Use link icon to create dependencies</p>
                             </div>
                           </TooltipContent>
