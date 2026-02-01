@@ -41,7 +41,7 @@ export default function Project() {
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
   const [statusFilter, setStatusFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
-  const [colorFilter, setColorFilter] = useState('all');
+  const [colorFilter, setColorFilter] = useState<string[]>([]);
   const [showProgress, setShowProgress] = useState(true);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
@@ -78,9 +78,10 @@ export default function Project() {
     return tasks.filter(task => {
       if (statusFilter !== 'all' && task.status !== statusFilter) return false;
       if (ownerFilter !== 'all' && task.owner !== ownerFilter) return false;
-      if (colorFilter !== 'all') {
-        if (colorFilter === 'none' && task.color !== null) return false;
-        if (colorFilter !== 'none' && task.color !== colorFilter) return false;
+      if (colorFilter.length > 0) {
+        // Check if task matches any of the selected colors
+        const taskColorKey = task.color ?? 'none';
+        if (!colorFilter.includes(taskColorKey)) return false;
       }
       return true;
     });
@@ -293,7 +294,7 @@ export default function Project() {
   const handleClearFilters = useCallback(() => {
     setStatusFilter('all');
     setOwnerFilter('all');
-    setColorFilter('all');
+    setColorFilter([]);
   }, []);
 
   const handleBulkColorChange = useCallback(async (color: string | null) => {
