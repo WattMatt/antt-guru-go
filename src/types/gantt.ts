@@ -38,6 +38,17 @@ export interface TaskDependency {
   created_at: string;
 }
 
+export interface Milestone {
+  id: string;
+  project_id: string;
+  name: string;
+  date: string;
+  description: string | null;
+  color: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   user_id: string;
