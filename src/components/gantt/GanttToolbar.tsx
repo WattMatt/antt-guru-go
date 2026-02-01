@@ -83,6 +83,7 @@ interface GanttToolbarProps {
   activeBaselineId?: string | null;
   onBaselineChange?: (baselineId: string | null) => void;
   onCreateBaseline?: (name: string, description?: string) => void;
+  onUpdateBaseline?: (id: string, name: string, description?: string | null) => void;
   onDeleteBaseline?: (id: string) => void;
   taskCount?: number;
 }
@@ -140,6 +141,7 @@ export function GanttToolbar({
   activeBaselineId = null,
   onBaselineChange,
   onCreateBaseline,
+  onUpdateBaseline,
   onDeleteBaseline,
   taskCount = 0
 }: GanttToolbarProps) {
@@ -427,12 +429,13 @@ export function GanttToolbar({
           )}
 
           {/* Baseline Selector */}
-          {onBaselineChange && onCreateBaseline && onDeleteBaseline && (
+          {onBaselineChange && onCreateBaseline && onUpdateBaseline && onDeleteBaseline && (
             <BaselineSelector
               baselines={baselines}
               activeBaselineId={activeBaselineId}
               onBaselineChange={onBaselineChange}
               onCreateBaseline={onCreateBaseline}
+              onUpdateBaseline={onUpdateBaseline}
               onDeleteBaseline={onDeleteBaseline}
               taskCount={taskCount}
               disabled={isEmpty}
