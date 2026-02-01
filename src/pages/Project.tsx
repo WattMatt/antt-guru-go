@@ -15,10 +15,11 @@ import { TaskForm } from '@/components/gantt/TaskForm';
 import { ProgressPanel } from '@/components/gantt/ProgressPanel';
 import { OnboardingChecklist } from '@/components/gantt/OnboardingChecklist';
 import { BulkActionsBar } from '@/components/gantt/BulkActionsBar';
+import { KeyboardShortcutsModal } from '@/components/gantt/KeyboardShortcutsModal';
 import { Confetti } from '@/components/ui/confetti';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { ArrowLeft, BarChart3, Settings } from 'lucide-react';
+import { ArrowLeft, BarChart3, Settings, Keyboard } from 'lucide-react';
 
 export default function Project() {
   const { id: projectId } = useParams<{ id: string }>();
@@ -55,6 +56,7 @@ export default function Project() {
   const [showProgress, setShowProgress] = useState(true);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -580,6 +582,7 @@ export default function Project() {
       { key: 'f', ctrlKey: true, handler: handleFocusSearch, description: 'Focus search' },
       { key: '/', handler: handleFocusSearch, description: 'Focus search (alternative)' },
       { key: 'a', ctrlKey: true, handler: handleSelectAllVisible, description: 'Select all visible tasks' },
+      { key: '?', handler: () => setShowShortcutsModal(true), description: 'Show keyboard shortcuts' },
       // Color shortcuts only active when tasks are selected
       ...colorShortcuts
     ]
@@ -611,6 +614,10 @@ export default function Project() {
     <div className="min-h-screen bg-background">
       {/* Celebration confetti animation */}
       <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
+      
+      {/* Keyboard shortcuts modal */}
+      <KeyboardShortcutsModal open={showShortcutsModal} onOpenChange={setShowShortcutsModal} />
+      
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-20">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -628,15 +635,26 @@ export default function Project() {
               </div>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowProgress(!showProgress)}
-            className="hidden md:flex"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            {showProgress ? 'Hide' : 'Show'} Progress
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowShortcutsModal(true)}
+              className="hidden md:flex"
+              title="Keyboard shortcuts (?)"
+            >
+              <Keyboard className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowProgress(!showProgress)}
+              className="hidden md:flex"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              {showProgress ? 'Hide' : 'Show'} Progress
+            </Button>
+          </div>
         </div>
       </header>
 
