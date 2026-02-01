@@ -17,6 +17,7 @@ import { OnboardingChecklist } from '@/components/gantt/OnboardingChecklist';
 import { BulkActionsBar } from '@/components/gantt/BulkActionsBar';
 import { KeyboardShortcutsModal } from '@/components/gantt/KeyboardShortcutsModal';
 import { Confetti } from '@/components/ui/confetti';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { ArrowLeft, BarChart3, Settings, Keyboard } from 'lucide-react';
@@ -636,6 +637,7 @@ export default function Project() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button
               variant="ghost"
               size="icon"
