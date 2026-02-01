@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond, Image } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -34,6 +34,8 @@ interface GanttToolbarProps {
   onAddMilestone?: () => void;
   milestoneCount?: number;
   onExportPdf: () => void;
+  onExportPng: () => void;
+  onExportJpeg: () => void;
   onExportExcel: () => void;
   onExportWord: () => void;
   statusFilter: string;
@@ -77,6 +79,8 @@ export function GanttToolbar({
   onAddMilestone,
   milestoneCount = 0,
   onExportPdf,
+  onExportPng,
+  onExportJpeg,
   onExportExcel,
   onExportWord,
   statusFilter,
@@ -932,6 +936,14 @@ export function GanttToolbar({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={onExportPng}>
+                      <Image className="h-4 w-4 mr-2" />
+                      Export as PNG
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onExportJpeg}>
+                      <Image className="h-4 w-4 mr-2" />
+                      Export as JPEG
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={onExportPdf}>
                       <File className="h-4 w-4 mr-2" />
                       Export as PDF

@@ -8,6 +8,7 @@ import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
 import { useUndoRedo, UndoableAction } from '@/hooks/useUndoRedo';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useFilterPresets, FilterPreset } from '@/hooks/useFilterPresets';
+import { useChartExport } from '@/hooks/useChartExport';
 import { TASK_COLOR_PRESETS } from '@/lib/taskColors';
 import { Task, ViewMode, DependencyType, GroupByMode } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
@@ -68,8 +69,15 @@ export default function Project() {
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   const project = projects.find(p => p.id === projectId);
+
+  // Chart export functionality
+  const { exportAsPng, exportAsJpeg, exportAsPdf } = useChartExport({
+    chartRef,
+    projectName: project?.name ?? 'gantt-chart'
+  });
 
   useEffect(() => {
     if (!user) {
@@ -257,9 +265,6 @@ export default function Project() {
     }
   };
 
-  const handleExportPdf = () => {
-    toast.info('PDF export coming soon!');
-  };
 
   const handleExportExcel = () => {
     toast.info('Excel export coming soon!');
@@ -639,7 +644,7 @@ export default function Project() {
     tasks,
     projectId: projectId ?? '',
     onAddTask: handleAddTask,
-    onExport: handleExportPdf
+    onExport: exportAsPdf
   });
 
   if (!project) {
@@ -731,7 +736,9 @@ export default function Project() {
               onAddTask={handleAddTask}
               onAddMilestone={handleAddMilestone}
               milestoneCount={milestones.length}
-              onExportPdf={handleExportPdf}
+              onExportPdf={exportAsPdf}
+              onExportPng={exportAsPng}
+              onExportJpeg={exportAsJpeg}
               onExportExcel={handleExportExcel}
               onExportWord={handleExportWord}
               statusFilter={statusFilter}
@@ -764,7 +771,7 @@ export default function Project() {
               searchInputRef={searchInputRef}
             />
 
-            <div className="mt-4">
+            <div className="mt-4" ref={chartRef}>
               <GanttChart
                 tasks={filteredTasks}
                 dependencies={dependencies}
