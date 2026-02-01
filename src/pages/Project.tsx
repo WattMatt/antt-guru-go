@@ -41,6 +41,7 @@ export default function Project() {
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
   const [statusFilter, setStatusFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
+  const [colorFilter, setColorFilter] = useState('all');
   const [showProgress, setShowProgress] = useState(true);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
@@ -77,9 +78,13 @@ export default function Project() {
     return tasks.filter(task => {
       if (statusFilter !== 'all' && task.status !== statusFilter) return false;
       if (ownerFilter !== 'all' && task.owner !== ownerFilter) return false;
+      if (colorFilter !== 'all') {
+        if (colorFilter === 'none' && task.color !== null) return false;
+        if (colorFilter !== 'none' && task.color !== colorFilter) return false;
+      }
       return true;
     });
-  }, [tasks, statusFilter, ownerFilter]);
+  }, [tasks, statusFilter, ownerFilter, colorFilter]);
 
   const handleAddTask = () => {
     setSelectedTask(undefined);
@@ -560,6 +565,8 @@ export default function Project() {
               onStatusFilterChange={setStatusFilter}
               ownerFilter={ownerFilter}
               onOwnerFilterChange={setOwnerFilter}
+              colorFilter={colorFilter}
+              onColorFilterChange={setColorFilter}
               owners={owners}
               isEmpty={tasks.length === 0}
               dependencyCount={dependencies.length}
