@@ -2,7 +2,8 @@ import { ViewMode, DependencyType } from '@/types/gantt';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2 } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette } from 'lucide-react';
+import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -282,6 +283,8 @@ export function GanttToolbar({
             </TooltipContent>
           </Tooltip>
           )}
+
+          <ColorLegend />
 
           <Tooltip>
             <TooltipTrigger asChild>
