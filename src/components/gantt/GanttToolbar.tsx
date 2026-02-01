@@ -1,16 +1,20 @@
+import { useState } from 'react';
 import { ViewMode, DependencyType } from '@/types/gantt';
 import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
+import { FilterPreset } from '@/hooks/useFilterPresets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 export interface DependencyBreakdown {
   finish_to_start: number;
@@ -47,6 +51,11 @@ interface GanttToolbarProps {
   onRedo?: () => void;
   undoDescription?: string | null;
   redoDescription?: string | null;
+  // Filter presets
+  filterPresets?: FilterPreset[];
+  onSavePreset?: (name: string) => void;
+  onApplyPreset?: (preset: FilterPreset) => void;
+  onDeletePreset?: (presetId: string) => void;
 }
 
 export function GanttToolbar({
@@ -75,8 +84,25 @@ export function GanttToolbar({
   onUndo,
   onRedo,
   undoDescription,
-  redoDescription
+  redoDescription,
+  filterPresets = [],
+  onSavePreset,
+  onApplyPreset,
+  onDeletePreset
 }: GanttToolbarProps) {
+  const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
+  const [presetName, setPresetName] = useState('');
+
+  const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0;
+
+  const handleSavePreset = () => {
+    if (presetName.trim() && onSavePreset) {
+      onSavePreset(presetName.trim());
+      setPresetName('');
+      setSavePresetDialogOpen(false);
+    }
+  };
+
   // Build breakdown tooltip text
   const getBreakdownText = () => {
     if (!dependencyBreakdown) return `${dependencyCount} dependencies`;
@@ -623,6 +649,67 @@ export function GanttToolbar({
             </Tooltip>
           )}
 
+          {/* Filter Presets */}
+          {(onSavePreset || onApplyPreset) && (
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Bookmark className="h-4 w-4 mr-1" />
+                      Presets
+                      {filterPresets.length > 0 && (
+                        <span className="ml-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-muted-foreground text-xs">
+                          {filterPresets.length}
+                        </span>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save and load filter presets</p>
+                </TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="w-56">
+                {hasActiveFilters && onSavePreset && (
+                  <>
+                    <DropdownMenuItem onClick={() => setSavePresetDialogOpen(true)}>
+                      <BookmarkPlus className="h-4 w-4 mr-2" />
+                      Save current filters...
+                    </DropdownMenuItem>
+                    {filterPresets.length > 0 && <DropdownMenuSeparator />}
+                  </>
+                )}
+                {filterPresets.length === 0 && !hasActiveFilters && (
+                  <div className="px-2 py-3 text-sm text-muted-foreground text-center">
+                    Apply filters and save them as presets for quick access
+                  </div>
+                )}
+                {filterPresets.map((preset) => (
+                  <DropdownMenuItem
+                    key={preset.id}
+                    className="flex items-center justify-between group"
+                    onClick={() => onApplyPreset?.(preset)}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Bookmark className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate">{preset.name}</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeletePreset?.(preset.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-opacity"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </button>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
@@ -656,6 +743,44 @@ export function GanttToolbar({
           </Tooltip>
         </div>
       </div>
+
+      {/* Save Preset Dialog */}
+      <Dialog open={savePresetDialogOpen} onOpenChange={setSavePresetDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Save Filter Preset</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="preset-name">Preset Name</Label>
+              <Input
+                id="preset-name"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder="e.g., My Team's Tasks"
+                onKeyDown={(e) => e.key === 'Enter' && handleSavePreset()}
+              />
+            </div>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p className="font-medium">Current filters:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                {searchQuery.trim() && <li>Search: "{searchQuery}"</li>}
+                {statusFilter !== 'all' && <li>Status: {statusFilter.replace('_', ' ')}</li>}
+                {ownerFilter !== 'all' && <li>Owner: {ownerFilter}</li>}
+                {colorFilter.length > 0 && <li>{colorFilter.length} color(s) selected</li>}
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSavePresetDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSavePreset} disabled={!presetName.trim()}>
+              Save Preset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }
