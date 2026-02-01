@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond, Image, CalendarDays } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond, Image, CalendarDays, Printer } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -39,6 +39,7 @@ interface GanttToolbarProps {
   onExportExcel: () => void;
   onExportWord: () => void;
   onExportCalendar: () => void;
+  onPrint: () => void;
   statusFilter: string;
   onStatusFilterChange: (status: string) => void;
   ownerFilter: string;
@@ -85,6 +86,7 @@ export function GanttToolbar({
   onExportExcel,
   onExportWord,
   onExportCalendar,
+  onPrint,
   statusFilter,
   onStatusFilterChange,
   ownerFilter,
@@ -961,6 +963,11 @@ export function GanttToolbar({
                     <DropdownMenuItem onClick={onExportCalendar}>
                       <CalendarDays className="h-4 w-4 mr-2" />
                       Export to Calendar (.ics)
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onPrint}>
+                      <Printer className="h-4 w-4 mr-2" />
+                      Print
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
