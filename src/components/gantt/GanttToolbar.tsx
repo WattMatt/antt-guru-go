@@ -346,9 +346,76 @@ export function GanttToolbar({
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Filters:</span>
             {(searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0) && (
-              <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
-                {[searchQuery.trim(), statusFilter !== 'all', ownerFilter !== 'all', colorFilter.length > 0].filter(Boolean).length}
-              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 cursor-pointer transition-colors">
+                    {[searchQuery.trim(), statusFilter !== 'all', ownerFilter !== 'all', colorFilter.length > 0].filter(Boolean).length}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3" align="start">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Active Filters</p>
+                    <div className="space-y-1.5">
+                      {searchQuery.trim() && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Search:</span>
+                          <span className="font-medium truncate max-w-[120px]">"{searchQuery.trim()}"</span>
+                        </div>
+                      )}
+                      {statusFilter !== 'all' && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Status:</span>
+                          <span className="font-medium capitalize">{statusFilter.replace('_', ' ')}</span>
+                        </div>
+                      )}
+                      {ownerFilter !== 'all' && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Owner:</span>
+                          <span className="font-medium truncate max-w-[120px]">{ownerFilter}</span>
+                        </div>
+                      )}
+                      {colorFilter.length > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Colors:</span>
+                          <div className="flex items-center gap-1">
+                            {colorFilter.slice(0, 4).map((colorKey) => {
+                              const preset = TASK_COLOR_PRESETS.find(p => p.key === colorKey);
+                              return preset ? (
+                                <div
+                                  key={colorKey}
+                                  className="w-3 h-3 rounded-full border border-border"
+                                  style={{ backgroundColor: preset.swatchColor }}
+                                  title={preset.label}
+                                />
+                              ) : colorKey === 'none' ? (
+                                <div
+                                  key="none"
+                                  className="w-3 h-3 rounded-full border border-border bg-muted"
+                                  title="No color"
+                                />
+                              ) : null;
+                            })}
+                            {colorFilter.length > 4 && (
+                              <span className="text-xs text-muted-foreground">+{colorFilter.length - 4}</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {onClearFilters && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onClearFilters}
+                        className="w-full mt-2"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Clear All
+                      </Button>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
           </div>
           
