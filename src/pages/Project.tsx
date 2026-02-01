@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
+import { useMilestones, Milestone } from '@/hooks/useMilestones';
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
 import { useUndoRedo, UndoableAction } from '@/hooks/useUndoRedo';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -12,6 +13,7 @@ import { Task, ViewMode, DependencyType, GroupByMode } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { GanttToolbar, DependencyBreakdown } from '@/components/gantt/GanttToolbar';
 import { TaskForm } from '@/components/gantt/TaskForm';
+import { MilestoneForm } from '@/components/gantt/MilestoneForm';
 import { ProgressPanel } from '@/components/gantt/ProgressPanel';
 import { OnboardingChecklist } from '@/components/gantt/OnboardingChecklist';
 import { BulkActionsBar } from '@/components/gantt/BulkActionsBar';
@@ -28,6 +30,9 @@ export default function Project() {
   const { user } = useAuth();
   const { projects } = useProjects();
   const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency, bulkUpdateTasks, bulkDeleteTasks, reorderTasks, duplicateTask } = useTasks(projectId);
+  
+  // Milestones
+  const { milestones, createMilestone, updateMilestone, deleteMilestone } = useMilestones(projectId);
   
   // Undo/Redo functionality
   const {
@@ -48,7 +53,9 @@ export default function Project() {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [groupBy, setGroupBy] = useState<GroupByMode>('none');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [isMilestoneFormOpen, setIsMilestoneFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
+  const [selectedMilestone, setSelectedMilestone] = useState<Milestone | undefined>();
   const [statusFilter, setStatusFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [colorFilter, setColorFilter] = useState<string[]>([]);
@@ -118,6 +125,43 @@ export default function Project() {
   const handleAddTask = () => {
     setSelectedTask(undefined);
     setIsTaskFormOpen(true);
+  };
+
+  const handleAddMilestone = () => {
+    setSelectedMilestone(undefined);
+    setIsMilestoneFormOpen(true);
+  };
+
+  const handleMilestoneClick = (milestone: Milestone) => {
+    setSelectedMilestone(milestone);
+    setIsMilestoneFormOpen(true);
+  };
+
+  const handleMilestoneSubmit = async (milestoneData: Omit<Milestone, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      if (selectedMilestone) {
+        await updateMilestone.mutateAsync({ id: selectedMilestone.id, ...milestoneData });
+        toast.success('Milestone updated successfully');
+      } else {
+        await createMilestone.mutateAsync(milestoneData);
+        toast.success('Milestone created successfully');
+      }
+      setIsMilestoneFormOpen(false);
+      setSelectedMilestone(undefined);
+    } catch (error) {
+      toast.error('Failed to save milestone');
+    }
+  };
+
+  const handleDeleteMilestone = async (id: string) => {
+    try {
+      await deleteMilestone.mutateAsync(id);
+      toast.success('Milestone deleted');
+      setIsMilestoneFormOpen(false);
+      setSelectedMilestone(undefined);
+    } catch (error) {
+      toast.error('Failed to delete milestone');
+    }
   };
 
   const handleTaskClick = (task: Task) => {
@@ -685,6 +729,8 @@ export default function Project() {
               groupBy={groupBy}
               onGroupByChange={setGroupBy}
               onAddTask={handleAddTask}
+              onAddMilestone={handleAddMilestone}
+              milestoneCount={milestones.length}
               onExportPdf={handleExportPdf}
               onExportExcel={handleExportExcel}
               onExportWord={handleExportWord}
@@ -722,6 +768,7 @@ export default function Project() {
               <GanttChart
                 tasks={filteredTasks}
                 dependencies={dependencies}
+                milestones={milestones}
                 viewMode={viewMode}
                 groupBy={groupBy}
                 onTaskClick={handleTaskClick}
@@ -731,6 +778,7 @@ export default function Project() {
                 onCreateDependency={handleCreateDependency}
                 onUpdateDependency={handleUpdateDependency}
                 onDeleteDependency={handleDeleteDependency}
+                onMilestoneClick={handleMilestoneClick}
                 selectedTaskIds={selectedTaskIds}
                 onTaskSelect={handleTaskSelect}
                 onSelectAll={handleSelectAll}
@@ -766,6 +814,16 @@ export default function Project() {
         projectId={projectId!}
         task={selectedTask}
         isLoading={createTask.isPending || updateTask.isPending}
+      />
+
+      {/* Milestone Form Dialog */}
+      <MilestoneForm
+        projectId={projectId!}
+        milestone={selectedMilestone}
+        open={isMilestoneFormOpen}
+        onOpenChange={setIsMilestoneFormOpen}
+        onSubmit={handleMilestoneSubmit}
+        onDelete={handleDeleteMilestone}
       />
     </div>
   );

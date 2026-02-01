@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers, Diamond } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -31,6 +31,8 @@ interface GanttToolbarProps {
   groupBy: GroupByMode;
   onGroupByChange: (mode: GroupByMode) => void;
   onAddTask: () => void;
+  onAddMilestone?: () => void;
+  milestoneCount?: number;
   onExportPdf: () => void;
   onExportExcel: () => void;
   onExportWord: () => void;
@@ -72,6 +74,8 @@ export function GanttToolbar({
   groupBy,
   onGroupByChange,
   onAddTask,
+  onAddMilestone,
+  milestoneCount = 0,
   onExportPdf,
   onExportExcel,
   onExportWord,
@@ -146,6 +150,26 @@ export function GanttToolbar({
               <p>Start by adding tasks with names and dates</p>
             </TooltipContent>
           </Tooltip>
+
+          {/* Add Milestone button */}
+          {onAddMilestone && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" onClick={onAddMilestone}>
+                  <Diamond className="h-4 w-4 mr-2" />
+                  Milestone
+                  {milestoneCount > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                      {milestoneCount}
+                    </span>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Add key project dates and deadlines</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           {/* Undo/Redo buttons */}
           <div className="flex items-center gap-1">

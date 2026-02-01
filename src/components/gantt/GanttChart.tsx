@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useRef } from 'react';
-import { Task, TaskDependency, ViewMode, DependencyType, GroupByMode } from '@/types/gantt';
+import { Task, TaskDependency, ViewMode, DependencyType, GroupByMode, Milestone } from '@/types/gantt';
 import { getTaskColorPreset } from '@/lib/taskColors';
 import { format, differenceInDays, addDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isToday, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -9,13 +9,15 @@ import { GettingStartedGuide } from './GettingStartedGuide';
 import { useGanttDrag } from '@/hooks/useGanttDrag';
 import { useDependencyDrag } from '@/hooks/useDependencyDrag';
 import { useTaskReorder } from '@/hooks/useTaskReorder';
-import { GripVertical, Link2, Lightbulb, User, CheckCircle2, Circle, Clock } from 'lucide-react';
+import { GripVertical, Link2, Lightbulb, User, CheckCircle2, Circle, Clock, Diamond } from 'lucide-react';
 import { DependencyArrows } from './DependencyArrows';
 import { DependencyDragLine } from './DependencyDragLine';
+import { MilestoneMarker } from './MilestoneMarker';
 
 interface GanttChartProps {
   tasks: Task[];
   dependencies: TaskDependency[];
+  milestones?: Milestone[];
   viewMode: ViewMode;
   groupBy?: GroupByMode;
   onTaskClick: (task: Task) => void;
@@ -25,6 +27,7 @@ interface GanttChartProps {
   onCreateDependency?: (predecessorId: string, successorId: string, dependencyType: DependencyType) => void;
   onUpdateDependency?: (dependencyId: string, dependencyType: DependencyType) => void;
   onDeleteDependency?: (dependencyId: string) => void;
+  onMilestoneClick?: (milestone: Milestone) => void;
   selectedTaskIds?: Set<string>;
   onTaskSelect?: (taskId: string, selected: boolean) => void;
   onSelectAll?: (selected: boolean) => void;
@@ -66,6 +69,7 @@ function HighlightedText({ text, query }: { text: string; query?: string }) {
 export function GanttChart({ 
   tasks, 
   dependencies, 
+  milestones = [],
   viewMode, 
   groupBy = 'none',
   onTaskClick, 
@@ -75,6 +79,7 @@ export function GanttChart({
   onCreateDependency, 
   onUpdateDependency, 
   onDeleteDependency,
+  onMilestoneClick,
   selectedTaskIds = new Set(),
   onTaskSelect,
   onSelectAll,
@@ -232,6 +237,22 @@ export function GanttChart({
         return daysFromStart * unitWidth;
     }
   };
+
+  const getMilestonePosition = useCallback((milestoneDate: string) => {
+    const date = startOfDay(new Date(milestoneDate));
+    const daysFromStart = differenceInDays(date, startDate);
+    
+    switch (viewMode) {
+      case 'day':
+        return daysFromStart * unitWidth;
+      case 'week':
+        return (daysFromStart / 7) * unitWidth;
+      case 'month':
+        return (daysFromStart / 30) * unitWidth;
+      default:
+        return daysFromStart * unitWidth;
+    }
+  }, [startDate, viewMode, unitWidth]);
 
   const getStatusColor = (task: Task) => {
     // If task has a custom color, use it
@@ -569,6 +590,20 @@ export function GanttChart({
                 onUpdateDependency={onUpdateDependency}
                 onDeleteDependency={onDeleteDependency}
               />
+
+              {/* Milestone markers */}
+              {milestones.map((milestone) => {
+                const position = getMilestonePosition(milestone.date);
+                if (position < 0 || position > chartWidth) return null;
+                return (
+                  <MilestoneMarker
+                    key={milestone.id}
+                    milestone={milestone}
+                    left={position}
+                    onClick={(m) => onMilestoneClick?.(m)}
+                  />
+                );
+              })}
 
               {/* Today line */}
               {todayPosition >= 0 && todayPosition <= chartWidth && (
