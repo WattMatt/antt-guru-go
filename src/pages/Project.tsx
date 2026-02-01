@@ -485,6 +485,7 @@ export default function Project() {
       { key: 'z', ctrlKey: true, handler: handleUndo, description: 'Undo' },
       { key: 'y', ctrlKey: true, handler: handleRedo, description: 'Redo' },
       { key: 'z', ctrlKey: true, shiftKey: true, handler: handleRedo, description: 'Redo (alternative)' },
+      { key: 'Escape', handler: handleClearFilters, description: 'Clear all filters' },
       // Color shortcuts only active when tasks are selected
       ...colorShortcuts
     ]
