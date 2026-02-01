@@ -6,6 +6,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
 import { useUndoRedo, UndoableAction } from '@/hooks/useUndoRedo';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { TASK_COLOR_PRESETS } from '@/lib/taskColors';
 import { Task, ViewMode, DependencyType } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { GanttToolbar, DependencyBreakdown } from '@/components/gantt/GanttToolbar';
@@ -447,12 +448,33 @@ export default function Project() {
     }
   }, [popRedo, deleteTask, updateTask, createTask, deleteDependency, createDependency, updateDependency]);
 
+  // Color keyboard shortcuts (1-9 for colors, 0 to clear)
+  const colorShortcuts = useMemo(() => {
+    const shortcuts = [
+      // Clear color with 0 key
+      { 
+        key: '0', 
+        handler: () => selectedTaskIds.size > 0 && handleBulkColorChange(null), 
+        description: 'Clear color' 
+      },
+      // 1-9 for first 9 color presets
+      ...TASK_COLOR_PRESETS.slice(0, 9).map((preset, index) => ({
+        key: String(index + 1),
+        handler: () => selectedTaskIds.size > 0 && handleBulkColorChange(preset.key),
+        description: `Set ${preset.label} color`
+      }))
+    ];
+    return shortcuts;
+  }, [selectedTaskIds.size, handleBulkColorChange]);
+
   // Keyboard shortcuts
   useKeyboardShortcuts({
     shortcuts: [
       { key: 'z', ctrlKey: true, handler: handleUndo, description: 'Undo' },
       { key: 'y', ctrlKey: true, handler: handleRedo, description: 'Redo' },
-      { key: 'z', ctrlKey: true, shiftKey: true, handler: handleRedo, description: 'Redo (alternative)' }
+      { key: 'z', ctrlKey: true, shiftKey: true, handler: handleRedo, description: 'Redo (alternative)' },
+      // Color shortcuts only active when tasks are selected
+      ...colorShortcuts
     ]
   });
 
