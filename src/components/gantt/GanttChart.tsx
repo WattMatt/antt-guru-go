@@ -28,6 +28,31 @@ interface GanttChartProps {
   onTaskSelect?: (taskId: string, selected: boolean) => void;
   onSelectAll?: (selected: boolean) => void;
   onReorderTask?: (taskId: string, newIndex: number) => void;
+  searchQuery?: string;
+}
+
+// Highlight matching text in a string
+function HighlightedText({ text, query }: { text: string; query?: string }) {
+  if (!query?.trim()) {
+    return <>{text}</>;
+  }
+  
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+  
+  return (
+    <>
+      {parts.map((part, index) => 
+        regex.test(part) ? (
+          <mark key={index} className="bg-accent text-accent-foreground px-0.5 rounded-sm">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
 }
 
 export function GanttChart({ 
@@ -44,7 +69,8 @@ export function GanttChart({
   selectedTaskIds = new Set(),
   onTaskSelect,
   onSelectAll,
-  onReorderTask
+  onReorderTask,
+  searchQuery
 }: GanttChartProps) {
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
@@ -395,7 +421,7 @@ export function GanttChart({
                   "text-sm truncate flex-1",
                   task.status === 'completed' && "line-through text-muted-foreground"
                 )}>
-                  {task.name}
+                  <HighlightedText text={task.name} query={searchQuery} />
                 </span>
               </div>
             );
