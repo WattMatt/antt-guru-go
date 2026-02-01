@@ -63,6 +63,8 @@ export type ViewMode = 'day' | 'week' | 'month';
 
 export type GroupByMode = 'none' | 'owner' | 'status';
 
+export type ChartViewType = 'gantt' | 'resources';
+
 export interface GanttChartConfig {
   viewMode: ViewMode;
   showDependencies: boolean;
