@@ -56,6 +56,7 @@ interface GanttToolbarProps {
   onSavePreset?: (name: string) => void;
   onApplyPreset?: (preset: FilterPreset) => void;
   onDeletePreset?: (presetId: string) => void;
+  searchInputRef?: React.RefObject<HTMLInputElement>;
 }
 
 export function GanttToolbar({
@@ -88,7 +89,8 @@ export function GanttToolbar({
   filterPresets = [],
   onSavePreset,
   onApplyPreset,
-  onDeletePreset
+  onDeletePreset,
+  searchInputRef
 }: GanttToolbarProps) {
   const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
   const [presetName, setPresetName] = useState('');
@@ -352,8 +354,9 @@ export function GanttToolbar({
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               type="text"
-              placeholder="Search tasks..."
+              placeholder="Search tasks... (Ctrl+F)"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-8 w-[180px] h-9"
