@@ -96,6 +96,27 @@ export function useBaselines(projectId: string | undefined) {
     }
   });
 
+  const updateBaseline = useMutation({
+    mutationFn: async ({ id, name, description }: { 
+      id: string; 
+      name: string; 
+      description?: string | null;
+    }) => {
+      const { data, error } = await supabase
+        .from('baselines')
+        .update({ name, description })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Baseline;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['baselines', projectId] });
+    }
+  });
+
   // Get tasks for a specific baseline
   const getBaselineTasks = (baselineId: string): BaselineTask[] => {
     return baselineTasksQuery.data?.filter(t => t.baseline_id === baselineId) ?? [];
@@ -106,6 +127,7 @@ export function useBaselines(projectId: string | undefined) {
     baselineTasks: baselineTasksQuery.data ?? [],
     isLoading: baselinesQuery.isLoading,
     createBaseline,
+    updateBaseline,
     deleteBaseline,
     getBaselineTasks
   };

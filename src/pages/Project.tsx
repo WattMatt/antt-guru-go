@@ -39,7 +39,7 @@ export default function Project() {
   const { milestones, createMilestone, updateMilestone, deleteMilestone } = useMilestones(projectId);
   
   // Baselines
-  const { baselines, baselineTasks, createBaseline, deleteBaseline, getBaselineTasks } = useBaselines(projectId);
+  const { baselines, baselineTasks, createBaseline, updateBaseline, deleteBaseline, getBaselineTasks } = useBaselines(projectId);
   
   // Undo/Redo functionality
   const {
@@ -730,6 +730,15 @@ export default function Project() {
     }
   };
 
+  const handleUpdateBaseline = async (id: string, name: string, description?: string | null) => {
+    try {
+      await updateBaseline.mutateAsync({ id, name, description });
+      toast.success('Baseline updated');
+    } catch (error) {
+      toast.error('Failed to update baseline');
+    }
+  };
+
   if (!project) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -868,6 +877,7 @@ export default function Project() {
                 activeBaselineId={activeBaselineId}
                 onBaselineChange={setActiveBaselineId}
                 onCreateBaseline={handleCreateBaseline}
+                onUpdateBaseline={handleUpdateBaseline}
                 onDeleteBaseline={handleDeleteBaseline}
                 taskCount={tasks.length}
               />
