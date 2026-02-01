@@ -273,16 +273,29 @@ export function GanttChart({
                   <div>
                     <Checkbox
                       checked={tasks.length > 0 && selectedTaskIds.size === tasks.length}
+                      ref={(el) => {
+                        if (el) {
+                          const isIndeterminate = selectedTaskIds.size > 0 && selectedTaskIds.size < tasks.length;
+                          (el as HTMLButtonElement).dataset.state = isIndeterminate ? 'indeterminate' : 
+                            (selectedTaskIds.size === tasks.length && tasks.length > 0) ? 'checked' : 'unchecked';
+                        }
+                      }}
                       onCheckedChange={(checked) => onSelectAll(!!checked)}
+                      className="data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
                     />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{selectedTaskIds.size === tasks.length ? 'Deselect all' : 'Select all'}</p>
+                  <p>{selectedTaskIds.size === tasks.length && tasks.length > 0 ? 'Deselect all' : `Select all ${tasks.length} visible tasks`}</p>
                 </TooltipContent>
               </Tooltip>
             )}
             <span>Task Name</span>
+            {tasks.length > 0 && (
+              <span className="text-xs text-muted-foreground font-normal ml-auto">
+                {selectedTaskIds.size > 0 ? `${selectedTaskIds.size}/${tasks.length}` : `${tasks.length}`}
+              </span>
+            )}
           </div>
           {tasks.map((task, index) => {
             const isSelected = selectedTaskIds.has(task.id);
