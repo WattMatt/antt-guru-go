@@ -190,6 +190,39 @@ export function useTasks(projectId: string | undefined) {
     }
   });
 
+  const reorderTasks = useMutation({
+    mutationFn: async ({ taskId, newIndex, tasks: currentTasks }: { taskId: string; newIndex: number; tasks: Task[] }) => {
+      const currentIndex = currentTasks.findIndex(t => t.id === taskId);
+      if (currentIndex === -1 || currentIndex === newIndex) return;
+
+      // Create new order array
+      const reorderedTasks = [...currentTasks];
+      const [movedTask] = reorderedTasks.splice(currentIndex, 1);
+      reorderedTasks.splice(newIndex, 0, movedTask);
+
+      // Update sort_order for all affected tasks
+      const updates = reorderedTasks.map((task, index) => ({
+        id: task.id,
+        sort_order: index
+      }));
+
+      // Batch update all sort_orders
+      await Promise.all(
+        updates.map(async ({ id, sort_order }) => {
+          const { error } = await supabase
+            .from('tasks')
+            .update({ sort_order })
+            .eq('id', id);
+
+          if (error) throw error;
+        })
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+    }
+  });
+
   return {
     tasks: tasksQuery.data ?? [],
     dependencies: dependenciesQuery.data ?? [],
@@ -203,6 +236,7 @@ export function useTasks(projectId: string | undefined) {
     deleteDependency,
     toggleTaskStatus,
     bulkUpdateTasks,
-    bulkDeleteTasks
+    bulkDeleteTasks,
+    reorderTasks
   };
 }

@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { GettingStartedGuide } from './GettingStartedGuide';
 import { useGanttDrag } from '@/hooks/useGanttDrag';
 import { useDependencyDrag } from '@/hooks/useDependencyDrag';
+import { useTaskReorder } from '@/hooks/useTaskReorder';
 import { GripVertical, Link2, Lightbulb } from 'lucide-react';
 import { DependencyArrows } from './DependencyArrows';
 import { DependencyDragLine } from './DependencyDragLine';
@@ -26,6 +27,7 @@ interface GanttChartProps {
   selectedTaskIds?: Set<string>;
   onTaskSelect?: (taskId: string, selected: boolean) => void;
   onSelectAll?: (selected: boolean) => void;
+  onReorderTask?: (taskId: string, newIndex: number) => void;
 }
 
 export function GanttChart({ 
@@ -41,7 +43,8 @@ export function GanttChart({
   onDeleteDependency,
   selectedTaskIds = new Set(),
   onTaskSelect,
-  onSelectAll
+  onSelectAll,
+  onReorderTask
 }: GanttChartProps) {
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
@@ -124,6 +127,26 @@ export function GanttChart({
   } = useDependencyDrag({
     tasks,
     onCreateDependency: handleCreateDependency
+  });
+
+  // Task reorder drag hook
+  const handleReorder = useCallback((taskId: string, newIndex: number) => {
+    if (onReorderTask) {
+      onReorderTask(taskId, newIndex);
+    }
+  }, [onReorderTask]);
+
+  const {
+    draggedTaskId: reorderDraggedTaskId,
+    dropTargetIndex,
+    handleDragStart: handleReorderDragStart,
+    handleDragEnd: handleReorderDragEnd,
+    handleDragOver: handleReorderDragOver,
+    handleDragLeave: handleReorderDragLeave,
+    handleDrop: handleReorderDrop
+  } = useTaskReorder({
+    tasks,
+    onReorder: handleReorder
   });
 
   const getTaskPosition = useCallback((task: Task) => {
@@ -259,17 +282,43 @@ export function GanttChart({
             )}
             <span>Task Name</span>
           </div>
-          {tasks.map((task) => {
+          {tasks.map((task, index) => {
             const isSelected = selectedTaskIds.has(task.id);
+            const isBeingReordered = reorderDraggedTaskId === task.id;
+            const isDropTarget = dropTargetIndex === index;
             return (
               <div
                 key={task.id}
+                draggable={!!onReorderTask}
+                onDragStart={(e) => handleReorderDragStart(e, task.id)}
+                onDragEnd={handleReorderDragEnd}
+                onDragOver={(e) => handleReorderDragOver(e, index)}
+                onDragLeave={handleReorderDragLeave}
+                onDrop={(e) => handleReorderDrop(e, index)}
                 className={cn(
-                  "h-12 border-b flex items-center gap-2 px-4 hover:bg-muted/50 cursor-pointer",
-                  isSelected && "bg-primary/10"
+                  "h-12 border-b flex items-center gap-2 px-2 hover:bg-muted/50 cursor-pointer group/row transition-all",
+                  isSelected && "bg-primary/10",
+                  isBeingReordered && "opacity-50 bg-muted",
+                  isDropTarget && !isBeingReordered && "border-t-2 border-t-primary"
                 )}
                 onClick={() => onTaskClick(task)}
               >
+                {/* Drag handle */}
+                {onReorderTask && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div 
+                        className="cursor-grab active:cursor-grabbing opacity-40 group-hover/row:opacity-100 transition-opacity"
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Drag to reorder</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
                 {onTaskSelect && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -306,7 +355,7 @@ export function GanttChart({
                   )}
                 />
                 <span className={cn(
-                  "text-sm truncate",
+                  "text-sm truncate flex-1",
                   task.status === 'completed' && "line-through text-muted-foreground"
                 )}>
                   {task.name}
