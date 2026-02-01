@@ -23,9 +23,26 @@ interface GanttChartProps {
   onCreateDependency?: (predecessorId: string, successorId: string, dependencyType: DependencyType) => void;
   onUpdateDependency?: (dependencyId: string, dependencyType: DependencyType) => void;
   onDeleteDependency?: (dependencyId: string) => void;
+  selectedTaskIds?: Set<string>;
+  onTaskSelect?: (taskId: string, selected: boolean) => void;
+  onSelectAll?: (selected: boolean) => void;
 }
 
-export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggleComplete, onAddTask, onTaskDateChange, onCreateDependency, onUpdateDependency, onDeleteDependency }: GanttChartProps) {
+export function GanttChart({ 
+  tasks, 
+  dependencies, 
+  viewMode, 
+  onTaskClick, 
+  onToggleComplete, 
+  onAddTask, 
+  onTaskDateChange, 
+  onCreateDependency, 
+  onUpdateDependency, 
+  onDeleteDependency,
+  selectedTaskIds = new Set(),
+  onTaskSelect,
+  onSelectAll
+}: GanttChartProps) {
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
     if (tasks.length === 0) {
@@ -223,44 +240,80 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
     <TooltipProvider delayDuration={300}>
       <div className={cn("flex border rounded-lg overflow-hidden bg-card", (isDragging || isLinkDragging) && "select-none")}>
         {/* Task list sidebar */}
-        <div className="w-64 flex-shrink-0 border-r bg-muted/30">
-          <div className="h-14 border-b flex items-center px-4 font-semibold bg-muted/50">
-            Task Name
-          </div>
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className="h-12 border-b flex items-center gap-2 px-4 hover:bg-muted/50 cursor-pointer"
-              onClick={() => onTaskClick(task)}
-            >
+        <div className="w-72 flex-shrink-0 border-r bg-muted/30">
+          <div className="h-14 border-b flex items-center gap-2 px-4 font-semibold bg-muted/50">
+            {onTaskSelect && onSelectAll && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div>
                     <Checkbox
-                      checked={task.status === 'completed'}
-                      onCheckedChange={() => onToggleComplete(task)}
+                      checked={tasks.length > 0 && selectedTaskIds.size === tasks.length}
+                      onCheckedChange={(checked) => onSelectAll(!!checked)}
                     />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Click to mark task as {task.status === 'completed' ? 'incomplete' : 'complete'}</p>
+                  <p>{selectedTaskIds.size === tasks.length ? 'Deselect all' : 'Select all'}</p>
                 </TooltipContent>
               </Tooltip>
-              {/* Color indicator dot */}
-              <div 
+            )}
+            <span>Task Name</span>
+          </div>
+          {tasks.map((task) => {
+            const isSelected = selectedTaskIds.has(task.id);
+            return (
+              <div
+                key={task.id}
                 className={cn(
-                  "w-2.5 h-2.5 rounded-full flex-shrink-0",
-                  getStatusColor(task)
+                  "h-12 border-b flex items-center gap-2 px-4 hover:bg-muted/50 cursor-pointer",
+                  isSelected && "bg-primary/10"
                 )}
-              />
-              <span className={cn(
-                "text-sm truncate",
-                task.status === 'completed' && "line-through text-muted-foreground"
-              )}>
-                {task.name}
-              </span>
-            </div>
-          ))}
+                onClick={() => onTaskClick(task)}
+              >
+                {onTaskSelect && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => onTaskSelect(task.id, !!checked)}
+                        />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{isSelected ? 'Deselect task' : 'Select task'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={task.status === 'completed'}
+                        onCheckedChange={() => onToggleComplete(task)}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Click to mark task as {task.status === 'completed' ? 'incomplete' : 'complete'}</p>
+                  </TooltipContent>
+                </Tooltip>
+                {/* Color indicator dot */}
+                <div 
+                  className={cn(
+                    "w-2.5 h-2.5 rounded-full flex-shrink-0",
+                    getStatusColor(task)
+                  )}
+                />
+                <span className={cn(
+                  "text-sm truncate",
+                  task.status === 'completed' && "line-through text-muted-foreground"
+                )}>
+                  {task.name}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Gantt chart area */}

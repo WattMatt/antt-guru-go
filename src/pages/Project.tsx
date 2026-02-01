@@ -12,6 +12,7 @@ import { GanttToolbar, DependencyBreakdown } from '@/components/gantt/GanttToolb
 import { TaskForm } from '@/components/gantt/TaskForm';
 import { ProgressPanel } from '@/components/gantt/ProgressPanel';
 import { OnboardingChecklist } from '@/components/gantt/OnboardingChecklist';
+import { BulkActionsBar } from '@/components/gantt/BulkActionsBar';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { ArrowLeft, BarChart3, Settings } from 'lucide-react';
@@ -21,7 +22,7 @@ export default function Project() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { projects } = useProjects();
-  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency } = useTasks(projectId);
+  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency, bulkUpdateTasks, bulkDeleteTasks } = useTasks(projectId);
   
   // Undo/Redo functionality
   const {
@@ -40,6 +41,7 @@ export default function Project() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [showProgress, setShowProgress] = useState(true);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
   const project = projects.find(p => p.id === projectId);
 
@@ -256,6 +258,58 @@ export default function Project() {
       toast.error('Failed to clear dependencies');
     }
   }, [dependencies, deleteDependency]);
+
+  // Task selection handlers
+  const handleTaskSelect = useCallback((taskId: string, selected: boolean) => {
+    setSelectedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(taskId);
+      } else {
+        newSet.delete(taskId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback((selected: boolean) => {
+    if (selected) {
+      setSelectedTaskIds(new Set(filteredTasks.map(t => t.id)));
+    } else {
+      setSelectedTaskIds(new Set());
+    }
+  }, [filteredTasks]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedTaskIds(new Set());
+  }, []);
+
+  const handleBulkColorChange = useCallback(async (color: string | null) => {
+    if (selectedTaskIds.size === 0) return;
+    
+    try {
+      await bulkUpdateTasks.mutateAsync({
+        ids: Array.from(selectedTaskIds),
+        updates: { color }
+      });
+      toast.success(`Updated color for ${selectedTaskIds.size} task${selectedTaskIds.size > 1 ? 's' : ''}`);
+      setSelectedTaskIds(new Set());
+    } catch (error) {
+      toast.error('Failed to update task colors');
+    }
+  }, [selectedTaskIds, bulkUpdateTasks]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedTaskIds.size === 0) return;
+    
+    try {
+      await bulkDeleteTasks.mutateAsync(Array.from(selectedTaskIds));
+      toast.success(`Deleted ${selectedTaskIds.size} task${selectedTaskIds.size > 1 ? 's' : ''}`);
+      setSelectedTaskIds(new Set());
+    } catch (error) {
+      toast.error('Failed to delete tasks');
+    }
+  }, [selectedTaskIds, bulkDeleteTasks]);
 
   // Undo handler
   const handleUndo = useCallback(async () => {
@@ -489,6 +543,9 @@ export default function Project() {
                 onCreateDependency={handleCreateDependency}
                 onUpdateDependency={handleUpdateDependency}
                 onDeleteDependency={handleDeleteDependency}
+                selectedTaskIds={selectedTaskIds}
+                onTaskSelect={handleTaskSelect}
+                onSelectAll={handleSelectAll}
               />
             </div>
           </div>
@@ -501,6 +558,14 @@ export default function Project() {
           )}
         </div>
       </main>
+
+      {/* Bulk Actions Bar */}
+      <BulkActionsBar
+        selectedCount={selectedTaskIds.size}
+        onClearSelection={handleClearSelection}
+        onBulkColorChange={handleBulkColorChange}
+        onBulkDelete={handleBulkDelete}
+      />
 
       {/* Task Form Dialog */}
       <TaskForm
