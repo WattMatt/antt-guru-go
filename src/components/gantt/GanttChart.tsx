@@ -246,6 +246,13 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
                   <p>Click to mark task as {task.status === 'completed' ? 'incomplete' : 'complete'}</p>
                 </TooltipContent>
               </Tooltip>
+              {/* Color indicator dot */}
+              <div 
+                className={cn(
+                  "w-2.5 h-2.5 rounded-full flex-shrink-0",
+                  getStatusColor(task)
+                )}
+              />
               <span className={cn(
                 "text-sm truncate",
                 task.status === 'completed' && "line-through text-muted-foreground"
