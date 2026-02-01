@@ -15,6 +15,7 @@ import { TaskForm } from '@/components/gantt/TaskForm';
 import { ProgressPanel } from '@/components/gantt/ProgressPanel';
 import { OnboardingChecklist } from '@/components/gantt/OnboardingChecklist';
 import { BulkActionsBar } from '@/components/gantt/BulkActionsBar';
+import { Confetti } from '@/components/ui/confetti';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { ArrowLeft, BarChart3, Settings } from 'lucide-react';
@@ -53,6 +54,7 @@ export default function Project() {
   const [dateRangeEnd, setDateRangeEnd] = useState<Date | null>(null);
   const [showProgress, setShowProgress] = useState(true);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [showConfetti, setShowConfetti] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -170,6 +172,8 @@ export default function Project() {
       });
       await toggleTaskStatus.mutateAsync({ id: task.id, status: task.status });
       if (task.status !== 'completed') {
+        // Trigger celebration animation
+        setShowConfetti(true);
         toast.success('✅ Task completed! Great work!');
       } else {
         toast.success('Task marked as incomplete');
@@ -605,6 +609,8 @@ export default function Project() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Celebration confetti animation */}
+      <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-20">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
