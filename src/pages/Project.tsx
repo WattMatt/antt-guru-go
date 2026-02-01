@@ -267,11 +267,25 @@ export default function Project() {
 
 
   const handleExportExcel = () => {
-    toast.info('Excel export coming soon!');
+    if (tasks.length === 0) {
+      toast.error('No tasks to export');
+      return;
+    }
+    import('@/lib/reportExport').then(({ exportToExcel }) => {
+      exportToExcel(tasks, project?.name ?? 'project');
+      toast.success('Excel file downloaded!');
+    });
   };
 
   const handleExportWord = () => {
-    toast.info('Word export coming soon!');
+    if (tasks.length === 0 && milestones.length === 0) {
+      toast.error('No tasks or milestones to export');
+      return;
+    }
+    import('@/lib/reportExport').then(({ exportToWord }) => {
+      exportToWord(tasks, milestones, project?.name ?? 'project');
+      toast.success('Word document downloaded!');
+    });
   };
 
   const handleExportCalendar = () => {
