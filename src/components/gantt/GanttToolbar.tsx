@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth, addMonths } from 'date-fns';
-import { ViewMode, DependencyType } from '@/types/gantt';
+import { ViewMode, DependencyType, GroupByMode } from '@/types/gantt';
 import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { FilterPreset } from '@/hooks/useFilterPresets';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon, Layers } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -28,6 +28,8 @@ export interface DependencyBreakdown {
 interface GanttToolbarProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  groupBy: GroupByMode;
+  onGroupByChange: (mode: GroupByMode) => void;
   onAddTask: () => void;
   onExportPdf: () => void;
   onExportExcel: () => void;
@@ -67,6 +69,8 @@ interface GanttToolbarProps {
 export function GanttToolbar({
   viewMode,
   onViewModeChange,
+  groupBy,
+  onGroupByChange,
   onAddTask,
   onExportPdf,
   onExportExcel,
@@ -353,6 +357,29 @@ export function GanttToolbar({
             </TooltipTrigger>
             <TooltipContent>
               <p>Switch views to see your timeline at different scales</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Group By dropdown */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Group:</span>
+                <Select value={groupBy} onValueChange={(value) => onGroupByChange(value as GroupByMode)}>
+                  <SelectTrigger className="w-[110px] h-9">
+                    <Layers className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="owner">By Owner</SelectItem>
+                    <SelectItem value="status">By Status</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Group tasks by owner or status</p>
             </TooltipContent>
           </Tooltip>
         </div>

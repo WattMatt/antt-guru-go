@@ -50,6 +50,8 @@ export interface Profile {
 
 export type ViewMode = 'day' | 'week' | 'month';
 
+export type GroupByMode = 'none' | 'owner' | 'status';
+
 export interface GanttChartConfig {
   viewMode: ViewMode;
   showDependencies: boolean;
