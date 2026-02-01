@@ -317,6 +317,16 @@ export function GanttToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
+          {/* Filters label with active count badge */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Filters:</span>
+            {(statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter !== 'all') && (
+              <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
+                {[statusFilter !== 'all', ownerFilter !== 'all', colorFilter !== 'all'].filter(Boolean).length}
+              </span>
+            )}
+          </div>
+          
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
