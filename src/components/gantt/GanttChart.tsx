@@ -139,6 +139,8 @@ export function GanttChart({
   const {
     draggedTaskId: reorderDraggedTaskId,
     dropTargetIndex,
+    isDragging: isReorderDragging,
+    getDropPosition,
     handleDragStart: handleReorderDragStart,
     handleDragEnd: handleReorderDragEnd,
     handleDragOver: handleReorderDragOver,
@@ -285,33 +287,55 @@ export function GanttChart({
           {tasks.map((task, index) => {
             const isSelected = selectedTaskIds.has(task.id);
             const isBeingReordered = reorderDraggedTaskId === task.id;
-            const isDropTarget = dropTargetIndex === index;
+            const isDropTarget = dropTargetIndex === index && !isBeingReordered;
+            const dropPosition = getDropPosition(index);
+            
             return (
               <div
                 key={task.id}
                 draggable={!!onReorderTask}
                 onDragStart={(e) => handleReorderDragStart(e, task.id)}
                 onDragEnd={handleReorderDragEnd}
-                onDragOver={(e) => handleReorderDragOver(e, index)}
+                onDragOver={(e) => handleReorderDragOver(e, index, task.id)}
                 onDragLeave={handleReorderDragLeave}
                 onDrop={(e) => handleReorderDrop(e, index)}
                 className={cn(
-                  "h-12 border-b flex items-center gap-2 px-2 hover:bg-muted/50 cursor-pointer group/row transition-all",
-                  isSelected && "bg-primary/10",
-                  isBeingReordered && "opacity-50 bg-muted",
-                  isDropTarget && !isBeingReordered && "border-t-2 border-t-primary"
+                  "h-12 border-b flex items-center gap-2 px-2 cursor-pointer group/row transition-all relative",
+                  // Normal hover state (only when not dragging)
+                  !isReorderDragging && "hover:bg-muted/50",
+                  // Selection state
+                  isSelected && !isBeingReordered && "bg-primary/10",
+                  // Being dragged state
+                  isBeingReordered && "opacity-40 bg-muted scale-[0.98] shadow-inner",
+                  // Other items during drag (slightly dimmed)
+                  isReorderDragging && !isBeingReordered && !isDropTarget && "opacity-70",
+                  // Drop target highlighting
+                  isDropTarget && "bg-primary/20 shadow-sm"
                 )}
                 onClick={() => onTaskClick(task)}
               >
+                {/* Drop indicator line - shows where task will be inserted */}
+                {isDropTarget && dropPosition === 'above' && (
+                  <div className="absolute -top-0.5 left-0 right-0 h-1 bg-primary rounded-full shadow-lg z-10" />
+                )}
+                {isDropTarget && dropPosition === 'below' && (
+                  <div className="absolute -bottom-0.5 left-0 right-0 h-1 bg-primary rounded-full shadow-lg z-10" />
+                )}
+                
                 {/* Drag handle */}
                 {onReorderTask && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div 
-                        className="cursor-grab active:cursor-grabbing opacity-40 group-hover/row:opacity-100 transition-opacity"
+                        className={cn(
+                          "cursor-grab active:cursor-grabbing transition-all",
+                          isBeingReordered 
+                            ? "opacity-100 text-primary" 
+                            : "opacity-40 group-hover/row:opacity-100 text-muted-foreground"
+                        )}
                         onMouseDown={(e) => e.stopPropagation()}
                       >
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        <GripVertical className="h-4 w-4" />
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
