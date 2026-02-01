@@ -657,6 +657,7 @@ export default function Project() {
                 onTaskSelect={handleTaskSelect}
                 onSelectAll={handleSelectAll}
                 onReorderTask={handleReorderTask}
+                searchQuery={searchQuery}
               />
             </div>
           </div>
