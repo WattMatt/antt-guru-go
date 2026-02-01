@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { ViewMode, DependencyType } from '@/types/gantt';
 import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { FilterPreset } from '@/hooks/useFilterPresets';
@@ -695,6 +695,60 @@ export function GanttToolbar({
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-4" align="start">
                     <div className="space-y-4">
+                      {/* Quick Presets */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Quick Select</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              const now = new Date();
+                              onDateRangeChange(startOfWeek(now, { weekStartsOn: 1 }), endOfWeek(now, { weekStartsOn: 1 }));
+                            }}
+                          >
+                            This Week
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              const now = new Date();
+                              onDateRangeChange(now, endOfWeek(addWeeks(now, 1), { weekStartsOn: 1 }));
+                            }}
+                          >
+                            Next 2 Weeks
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              const now = new Date();
+                              onDateRangeChange(startOfMonth(now), endOfMonth(now));
+                            }}
+                          >
+                            This Month
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              const now = new Date();
+                              const nextMonth = addMonths(now, 1);
+                              onDateRangeChange(startOfMonth(nextMonth), endOfMonth(nextMonth));
+                            }}
+                          >
+                            Next Month
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <Separator />
+                      
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Start Date</Label>
                         <Calendar
