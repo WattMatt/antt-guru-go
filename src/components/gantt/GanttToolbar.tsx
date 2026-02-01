@@ -29,8 +29,8 @@ interface GanttToolbarProps {
   onStatusFilterChange: (status: string) => void;
   ownerFilter: string;
   onOwnerFilterChange: (owner: string) => void;
-  colorFilter: string;
-  onColorFilterChange: (color: string) => void;
+  colorFilter: string[];
+  onColorFilterChange: (colors: string[]) => void;
   onClearFilters?: () => void;
   owners: string[];
   isEmpty?: boolean;
@@ -320,9 +320,9 @@ export function GanttToolbar({
           {/* Filters label with active count badge */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Filters:</span>
-            {(statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter !== 'all') && (
+            {(statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0) && (
               <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
-                {[statusFilter !== 'all', ownerFilter !== 'all', colorFilter !== 'all'].filter(Boolean).length}
+                {[statusFilter !== 'all', ownerFilter !== 'all', colorFilter.length > 0].filter(Boolean).length}
               </span>
             )}
           </div>
@@ -380,53 +380,139 @@ export function GanttToolbar({
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
-                <Select value={colorFilter} onValueChange={onColorFilterChange}>
-                  <SelectTrigger className="w-[140px]">
-                    <div className="flex items-center gap-2">
-                      {colorFilter !== 'all' && colorFilter !== 'none' && (
-                        <div 
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ 
-                            backgroundColor: TASK_COLOR_PRESETS.find(p => p.key === colorFilter)?.swatchColor 
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[140px] justify-between">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        {colorFilter.length === 0 ? (
+                          <span>All Colors</span>
+                        ) : colorFilter.length === 1 ? (
+                          <>
+                            {colorFilter[0] === 'none' ? (
+                              <div 
+                                className="w-3 h-3 rounded-full border border-muted-foreground/30 flex-shrink-0"
+                                style={{ background: 'linear-gradient(135deg, #e5e7eb 50%, #9ca3af 50%)' }}
+                              />
+                            ) : (
+                              <div 
+                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                style={{ 
+                                  backgroundColor: TASK_COLOR_PRESETS.find(p => p.key === colorFilter[0])?.swatchColor 
+                                }}
+                              />
+                            )}
+                            <span className="truncate">
+                              {colorFilter[0] === 'none' 
+                                ? 'No Color' 
+                                : TASK_COLOR_PRESETS.find(p => p.key === colorFilter[0])?.label}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex -space-x-1">
+                              {colorFilter.slice(0, 3).map((c, i) => (
+                                c === 'none' ? (
+                                  <div 
+                                    key={c}
+                                    className="w-3 h-3 rounded-full border border-muted-foreground/30 ring-1 ring-background"
+                                    style={{ background: 'linear-gradient(135deg, #e5e7eb 50%, #9ca3af 50%)', zIndex: 3 - i }}
+                                  />
+                                ) : (
+                                  <div 
+                                    key={c}
+                                    className="w-3 h-3 rounded-full ring-1 ring-background"
+                                    style={{ 
+                                      backgroundColor: TASK_COLOR_PRESETS.find(p => p.key === c)?.swatchColor,
+                                      zIndex: 3 - i
+                                    }}
+                                  />
+                                )
+                              ))}
+                            </div>
+                            <span>{colorFilter.length} colors</span>
+                          </>
+                        )}
+                      </div>
+                      <Palette className="h-4 w-4 flex-shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
+                    <div className="space-y-1">
+                      {/* No Color option */}
+                      <label className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={colorFilter.includes('none')}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              onColorFilterChange([...colorFilter, 'none']);
+                            } else {
+                              onColorFilterChange(colorFilter.filter(c => c !== 'none'));
+                            }
                           }}
+                          className="h-4 w-4 rounded border-input"
                         />
-                      )}
-                      <SelectValue placeholder="All Colors" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Colors</SelectItem>
-                    <SelectItem value="none">
-                      <div className="flex items-center gap-2">
                         <div 
                           className="w-3 h-3 rounded-full border border-muted-foreground/30"
                           style={{ background: 'linear-gradient(135deg, #e5e7eb 50%, #9ca3af 50%)' }}
                         />
-                        <span>No Color (Status)</span>
-                      </div>
-                    </SelectItem>
-                    {TASK_COLOR_PRESETS.map((preset) => (
-                      <SelectItem key={preset.key} value={preset.key}>
-                        <div className="flex items-center gap-2">
+                        <span className="text-sm">No Color (Status)</span>
+                      </label>
+                      
+                      <Separator className="my-1" />
+                      
+                      {/* Color presets */}
+                      {TASK_COLOR_PRESETS.map((preset) => (
+                        <label 
+                          key={preset.key} 
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={colorFilter.includes(preset.key)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                onColorFilterChange([...colorFilter, preset.key]);
+                              } else {
+                                onColorFilterChange(colorFilter.filter(c => c !== preset.key));
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-input"
+                          />
                           <div 
                             className="w-3 h-3 rounded-full"
                             style={{ backgroundColor: preset.swatchColor }}
                           />
-                          <span>{preset.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                          <span className="text-sm">{preset.label}</span>
+                        </label>
+                      ))}
+                      
+                      {colorFilter.length > 0 && (
+                        <>
+                          <Separator className="my-1" />
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full justify-start text-muted-foreground"
+                            onClick={() => onColorFilterChange([])}
+                          >
+                            <X className="h-3 w-3 mr-2" />
+                            Clear color filter
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Filter tasks by assigned color</p>
+              <p>Filter tasks by assigned color (multi-select)</p>
             </TooltipContent>
           </Tooltip>
 
           {/* Clear Filters button - only show when filters are active */}
-          {(statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter !== 'all') && onClearFilters && (
+          {(statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0) && onClearFilters && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
