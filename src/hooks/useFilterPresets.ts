@@ -7,6 +7,8 @@ export interface FilterPreset {
   statusFilter: string;
   ownerFilter: string;
   colorFilter: string[];
+  dateRangeStart: string | null;
+  dateRangeEnd: string | null;
   createdAt: string;
 }
 
@@ -48,6 +50,8 @@ export function useFilterPresets({ projectId }: UseFilterPresetsOptions) {
       statusFilter: string;
       ownerFilter: string;
       colorFilter: string[];
+      dateRangeStart: string | null;
+      dateRangeEnd: string | null;
     }
   ) => {
     const newPreset: FilterPreset = {

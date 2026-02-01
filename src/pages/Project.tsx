@@ -49,6 +49,8 @@ export default function Project() {
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [colorFilter, setColorFilter] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateRangeStart, setDateRangeStart] = useState<Date | null>(null);
+  const [dateRangeEnd, setDateRangeEnd] = useState<Date | null>(null);
   const [showProgress, setShowProgress] = useState(true);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   
@@ -96,9 +98,16 @@ export default function Project() {
         const taskColorKey = task.color ?? 'none';
         if (!colorFilter.includes(taskColorKey)) return false;
       }
+      // Date range filter - task overlaps with date range
+      if (dateRangeStart || dateRangeEnd) {
+        const taskStart = new Date(task.start_date);
+        const taskEnd = new Date(task.end_date);
+        if (dateRangeStart && taskEnd < dateRangeStart) return false;
+        if (dateRangeEnd && taskStart > dateRangeEnd) return false;
+      }
       return true;
     });
-  }, [tasks, searchQuery, statusFilter, ownerFilter, colorFilter]);
+  }, [tasks, searchQuery, statusFilter, ownerFilter, colorFilter, dateRangeStart, dateRangeEnd]);
 
   const handleAddTask = () => {
     setSelectedTask(undefined);
@@ -305,27 +314,44 @@ export default function Project() {
   }, []);
 
   const handleClearFilters = useCallback(() => {
-    const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0;
+    const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0 || dateRangeStart || dateRangeEnd;
     setSearchQuery('');
     setStatusFilter('all');
     setOwnerFilter('all');
     setColorFilter([]);
+    setDateRangeStart(null);
+    setDateRangeEnd(null);
     if (hasActiveFilters) {
       toast.success('Filters cleared');
     }
-  }, [searchQuery, statusFilter, ownerFilter, colorFilter]);
+  }, [searchQuery, statusFilter, ownerFilter, colorFilter, dateRangeStart, dateRangeEnd]);
+
+  // Date range change handler
+  const handleDateRangeChange = useCallback((start: Date | null, end: Date | null) => {
+    setDateRangeStart(start);
+    setDateRangeEnd(end);
+  }, []);
 
   // Filter preset handlers
   const handleSavePreset = useCallback((name: string) => {
-    savePreset(name, { searchQuery, statusFilter, ownerFilter, colorFilter });
+    savePreset(name, { 
+      searchQuery, 
+      statusFilter, 
+      ownerFilter, 
+      colorFilter,
+      dateRangeStart: dateRangeStart?.toISOString().split('T')[0] ?? null,
+      dateRangeEnd: dateRangeEnd?.toISOString().split('T')[0] ?? null
+    });
     toast.success(`Saved preset "${name}"`);
-  }, [savePreset, searchQuery, statusFilter, ownerFilter, colorFilter]);
+  }, [savePreset, searchQuery, statusFilter, ownerFilter, colorFilter, dateRangeStart, dateRangeEnd]);
 
   const handleApplyPreset = useCallback((preset: FilterPreset) => {
     setSearchQuery(preset.searchQuery);
     setStatusFilter(preset.statusFilter);
     setOwnerFilter(preset.ownerFilter);
     setColorFilter(preset.colorFilter);
+    setDateRangeStart(preset.dateRangeStart ? new Date(preset.dateRangeStart) : null);
+    setDateRangeEnd(preset.dateRangeEnd ? new Date(preset.dateRangeEnd) : null);
     toast.success(`Applied preset "${preset.name}"`);
   }, []);
 
@@ -620,6 +646,9 @@ export default function Project() {
               onOwnerFilterChange={setOwnerFilter}
               colorFilter={colorFilter}
               onColorFilterChange={setColorFilter}
+              dateRangeStart={dateRangeStart}
+              dateRangeEnd={dateRangeEnd}
+              onDateRangeChange={handleDateRangeChange}
               onClearFilters={handleClearFilters}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
