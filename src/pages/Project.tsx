@@ -290,6 +290,10 @@ export default function Project() {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const handleCreateDependency = async (predecessorId: string, successorId: string, dependencyType: DependencyType) => {
     try {
       const newDep = await createDependency.mutateAsync({
@@ -679,11 +683,15 @@ export default function Project() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Celebration confetti animation */}
-      <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
+      {/* Celebration confetti animation - hide during print */}
+      <div className="print-hidden">
+        <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
+      </div>
       
-      {/* Keyboard shortcuts modal */}
-      <KeyboardShortcutsModal open={showShortcutsModal} onOpenChange={setShowShortcutsModal} />
+      {/* Keyboard shortcuts modal - hide during print */}
+      <div className="print-hidden">
+        <KeyboardShortcutsModal open={showShortcutsModal} onOpenChange={setShowShortcutsModal} />
+      </div>
       
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-20">
@@ -728,9 +736,9 @@ export default function Project() {
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-6">
-        {/* Onboarding Checklist */}
+        {/* Onboarding Checklist - hide during print */}
         {onboarding.shouldShow && (
-          <div className="mb-6">
+          <div className="mb-6 print-hidden">
             <OnboardingChecklist
               steps={onboarding.steps}
               completedCount={onboarding.completedCount}
@@ -744,51 +752,54 @@ export default function Project() {
         <div className="flex gap-6">
           {/* Gantt Chart Area */}
           <div className={showProgress ? 'flex-1' : 'w-full'}>
-            <GanttToolbar
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              groupBy={groupBy}
-              onGroupByChange={setGroupBy}
-              onAddTask={handleAddTask}
-              onAddMilestone={handleAddMilestone}
-              milestoneCount={milestones.length}
-              onExportPdf={exportAsPdf}
-              onExportPng={exportAsPng}
-              onExportJpeg={exportAsJpeg}
-              onExportExcel={handleExportExcel}
-              onExportWord={handleExportWord}
-              onExportCalendar={handleExportCalendar}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              ownerFilter={ownerFilter}
-              onOwnerFilterChange={setOwnerFilter}
-              colorFilter={colorFilter}
-              onColorFilterChange={setColorFilter}
-              dateRangeStart={dateRangeStart}
-              dateRangeEnd={dateRangeEnd}
-              onDateRangeChange={handleDateRangeChange}
-              onClearFilters={handleClearFilters}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              owners={owners}
-              isEmpty={tasks.length === 0}
-              dependencyCount={dependencies.length}
-              dependencyBreakdown={dependencyBreakdown}
-              onClearAllDependencies={handleClearAllDependencies}
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              undoDescription={lastUndoDescription}
-              redoDescription={lastRedoDescription}
-              filterPresets={filterPresets}
-              onSavePreset={handleSavePreset}
-              onApplyPreset={handleApplyPreset}
-              onDeletePreset={handleDeletePreset}
-              searchInputRef={searchInputRef}
-            />
+            <div className="print-hidden">
+              <GanttToolbar
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                groupBy={groupBy}
+                onGroupByChange={setGroupBy}
+                onAddTask={handleAddTask}
+                onAddMilestone={handleAddMilestone}
+                milestoneCount={milestones.length}
+                onExportPdf={exportAsPdf}
+                onExportPng={exportAsPng}
+                onExportJpeg={exportAsJpeg}
+                onExportExcel={handleExportExcel}
+                onExportWord={handleExportWord}
+                onExportCalendar={handleExportCalendar}
+                onPrint={handlePrint}
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
+                ownerFilter={ownerFilter}
+                onOwnerFilterChange={setOwnerFilter}
+                colorFilter={colorFilter}
+                onColorFilterChange={setColorFilter}
+                dateRangeStart={dateRangeStart}
+                dateRangeEnd={dateRangeEnd}
+                onDateRangeChange={handleDateRangeChange}
+                onClearFilters={handleClearFilters}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                owners={owners}
+                isEmpty={tasks.length === 0}
+                dependencyCount={dependencies.length}
+                dependencyBreakdown={dependencyBreakdown}
+                onClearAllDependencies={handleClearAllDependencies}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                undoDescription={lastUndoDescription}
+                redoDescription={lastRedoDescription}
+                filterPresets={filterPresets}
+                onSavePreset={handleSavePreset}
+                onApplyPreset={handleApplyPreset}
+                onDeletePreset={handleDeletePreset}
+                searchInputRef={searchInputRef}
+              />
+            </div>
 
-            <div className="mt-4" ref={chartRef}>
+            <div className="mt-4 print-container" ref={chartRef}>
               <GanttChart
                 tasks={filteredTasks}
                 dependencies={dependencies}
@@ -812,43 +823,49 @@ export default function Project() {
             </div>
           </div>
 
-          {/* Progress Panel */}
+          {/* Progress Panel - hide during print */}
           {showProgress && (
-            <div className="w-80 flex-shrink-0 hidden md:block">
+            <div className="w-80 flex-shrink-0 hidden md:block print-hidden">
               <ProgressPanel tasks={tasks} />
             </div>
           )}
         </div>
       </main>
 
-      {/* Bulk Actions Bar */}
-      <BulkActionsBar
-        selectedCount={selectedTaskIds.size}
-        onClearSelection={handleClearSelection}
-        onBulkColorChange={handleBulkColorChange}
-        onBulkDelete={handleBulkDelete}
-      />
+      {/* Bulk Actions Bar - hide during print */}
+      <div className="print-hidden">
+        <BulkActionsBar
+          selectedCount={selectedTaskIds.size}
+          onClearSelection={handleClearSelection}
+          onBulkColorChange={handleBulkColorChange}
+          onBulkDelete={handleBulkDelete}
+        />
+      </div>
 
-      {/* Task Form Dialog */}
-      <TaskForm
-        open={isTaskFormOpen}
-        onOpenChange={setIsTaskFormOpen}
-        onSubmit={handleTaskSubmit}
-        onDuplicate={handleDuplicateTask}
-        projectId={projectId!}
-        task={selectedTask}
-        isLoading={createTask.isPending || updateTask.isPending}
-      />
+      {/* Task Form Dialog - hide during print */}
+      <div className="print-hidden">
+        <TaskForm
+          open={isTaskFormOpen}
+          onOpenChange={setIsTaskFormOpen}
+          onSubmit={handleTaskSubmit}
+          onDuplicate={handleDuplicateTask}
+          projectId={projectId!}
+          task={selectedTask}
+          isLoading={createTask.isPending || updateTask.isPending}
+        />
+      </div>
 
-      {/* Milestone Form Dialog */}
-      <MilestoneForm
-        projectId={projectId!}
-        milestone={selectedMilestone}
-        open={isMilestoneFormOpen}
-        onOpenChange={setIsMilestoneFormOpen}
-        onSubmit={handleMilestoneSubmit}
-        onDelete={handleDeleteMilestone}
-      />
+      {/* Milestone Form Dialog - hide during print */}
+      <div className="print-hidden">
+        <MilestoneForm
+          projectId={projectId!}
+          milestone={selectedMilestone}
+          open={isMilestoneFormOpen}
+          onOpenChange={setIsMilestoneFormOpen}
+          onSubmit={handleMilestoneSubmit}
+          onDelete={handleDeleteMilestone}
+        />
+      </div>
     </div>
   );
 }

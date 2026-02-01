@@ -103,3 +103,50 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Print-friendly styles */
+@media print {
+  /* Hide non-essential elements */
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Reset backgrounds for better printing */
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Optimize the chart container */
+  .print-container {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure task bars print with colors */
+  .print-container * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page setup */
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+
+  /* Hide scrollbars */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Make sure cards have visible borders */
+  .print-container [class*="card"] {
+    border: 1px solid #e5e7eb !important;
+    box-shadow: none !important;
+  }
+}
