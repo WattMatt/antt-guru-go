@@ -22,7 +22,7 @@ export default function Project() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { projects } = useProjects();
-  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency, bulkUpdateTasks, bulkDeleteTasks } = useTasks(projectId);
+  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency, bulkUpdateTasks, bulkDeleteTasks, reorderTasks } = useTasks(projectId);
   
   // Undo/Redo functionality
   const {
@@ -311,6 +311,16 @@ export default function Project() {
     }
   }, [selectedTaskIds, bulkDeleteTasks]);
 
+  // Reorder handler
+  const handleReorderTask = useCallback(async (taskId: string, newIndex: number) => {
+    try {
+      await reorderTasks.mutateAsync({ taskId, newIndex, tasks });
+      toast.success('Task order updated');
+    } catch (error) {
+      toast.error('Failed to reorder task');
+    }
+  }, [reorderTasks, tasks]);
+
   // Undo handler
   const handleUndo = useCallback(async () => {
     const action = popUndo();
@@ -546,6 +556,7 @@ export default function Project() {
                 selectedTaskIds={selectedTaskIds}
                 onTaskSelect={handleTaskSelect}
                 onSelectAll={handleSelectAll}
+                onReorderTask={handleReorderTask}
               />
             </div>
           </div>
