@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { GettingStartedGuide } from './GettingStartedGuide';
 import { useGanttDrag } from '@/hooks/useGanttDrag';
 import { useDependencyDrag } from '@/hooks/useDependencyDrag';
-import { GripVertical, Link2 } from 'lucide-react';
+import { GripVertical, Link2, Lightbulb } from 'lucide-react';
 import { DependencyArrows } from './DependencyArrows';
 import { DependencyDragLine } from './DependencyDragLine';
 
@@ -448,6 +448,22 @@ export function GanttChart({ tasks, dependencies, viewMode, onTaskClick, onToggl
                   </div>
                 );
               })}
+
+              {/* Dependency creation hint when no dependencies exist */}
+              {tasks.length >= 2 && dependencies.length === 0 && onCreateDependency && (
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-muted/80 to-transparent pt-6 pb-3 px-4">
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <Lightbulb className="h-4 w-4 text-primary" />
+                    <span>
+                      <strong>Tip:</strong> Hover over a task and drag the{' '}
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary mx-0.5 align-middle">
+                        <Link2 className="h-3 w-3 text-primary-foreground" />
+                      </span>{' '}
+                      icon to link tasks together
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
