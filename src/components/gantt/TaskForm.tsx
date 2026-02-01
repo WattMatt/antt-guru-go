@@ -11,19 +11,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
-import { CalendarIcon, Check, X } from 'lucide-react';
+import { CalendarIcon, Check, X, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TaskFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => void;
+  onDuplicate?: (task: Task) => void;
   projectId: string;
   task?: Task;
   isLoading?: boolean;
 }
 
-export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoading }: TaskFormProps) {
+export function TaskForm({ open, onOpenChange, onSubmit, onDuplicate, projectId, task, isLoading }: TaskFormProps) {
   const [name, setName] = useState(task?.name ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
   const [startDate, setStartDate] = useState<Date | undefined>(
@@ -272,13 +273,38 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, task, isLoad
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : task ? 'Update Task' : 'Create Task'}
-            </Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
+              {task && onDuplicate && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        onDuplicate(task);
+                        onOpenChange(false);
+                      }}
+                      disabled={isLoading}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Duplicate task</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Saving...' : task ? 'Update Task' : 'Create Task'}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
