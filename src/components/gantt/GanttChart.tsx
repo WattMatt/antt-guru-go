@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useRef } from 'react';
 import { Task, TaskDependency, ViewMode, DependencyType, GroupByMode, Milestone, BaselineTask } from '@/types/gantt';
 import { TaskSlackInfo } from '@/lib/criticalPath';
+import { calculateScheduleVariance, formatVariance, TaskVariance } from '@/lib/scheduleVariance';
 import { getTaskColorPreset } from '@/lib/taskColors';
 import { format, differenceInDays, addDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isToday, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -10,7 +11,7 @@ import { GettingStartedGuide } from './GettingStartedGuide';
 import { useGanttDrag } from '@/hooks/useGanttDrag';
 import { useDependencyDrag } from '@/hooks/useDependencyDrag';
 import { useTaskReorder } from '@/hooks/useTaskReorder';
-import { GripVertical, Link2, Lightbulb, User, CheckCircle2, Circle, Clock, Diamond, Timer } from 'lucide-react';
+import { GripVertical, Link2, Lightbulb, User, CheckCircle2, Circle, Clock, Diamond, Timer, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { DependencyArrows } from './DependencyArrows';
 import { DependencyDragLine } from './DependencyDragLine';
 import { MilestoneMarker } from './MilestoneMarker';
@@ -94,6 +95,15 @@ export function GanttChart({
   taskSlackMap = new Map()
 }: GanttChartProps) {
   const chartAreaRef = useRef<HTMLDivElement>(null);
+  
+  // Calculate schedule variance when baseline is active
+  const varianceMap = useMemo(() => {
+    if (baselineTasks.length === 0) {
+      return new Map<string, TaskVariance>();
+    }
+    return calculateScheduleVariance(tasks, baselineTasks);
+  }, [tasks, baselineTasks]);
+  
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
     if (tasks.length === 0) {
       const today = startOfDay(new Date());
@@ -581,6 +591,51 @@ export function GanttChart({
                         </TooltipContent>
                       </Tooltip>
                     )}
+                    {/* Variance indicator (only when baseline is active) */}
+                    {varianceMap.has(task.id) && varianceMap.get(task.id)!.hasBaseline && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div 
+                            className={cn(
+                              "flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded",
+                              varianceMap.get(task.id)!.status === 'behind'
+                                ? "bg-destructive/20 text-destructive" 
+                                : varianceMap.get(task.id)!.status === 'ahead'
+                                  ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                                  : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            {varianceMap.get(task.id)!.status === 'behind' ? (
+                              <TrendingDown className="h-3 w-3" />
+                            ) : varianceMap.get(task.id)!.status === 'ahead' ? (
+                              <TrendingUp className="h-3 w-3" />
+                            ) : (
+                              <Minus className="h-3 w-3" />
+                            )}
+                            <span>{formatVariance(varianceMap.get(task.id)!.endVariance)}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="text-xs space-y-1">
+                            <p className="font-medium">
+                              {varianceMap.get(task.id)!.status === 'behind' 
+                                ? `⚠️ Behind schedule by ${varianceMap.get(task.id)!.endVariance} day${varianceMap.get(task.id)!.endVariance !== 1 ? 's' : ''}`
+                                : varianceMap.get(task.id)!.status === 'ahead'
+                                  ? `✅ Ahead of schedule by ${Math.abs(varianceMap.get(task.id)!.endVariance)} day${Math.abs(varianceMap.get(task.id)!.endVariance) !== 1 ? 's' : ''}`
+                                  : '✓ On track with baseline'}
+                            </p>
+                            {varianceMap.get(task.id)!.startVariance !== 0 && (
+                              <p className="text-muted-foreground">
+                                Start: {formatVariance(varianceMap.get(task.id)!.startVariance)} vs baseline
+                              </p>
+                            )}
+                            <p className="text-muted-foreground">
+                              End: {formatVariance(varianceMap.get(task.id)!.endVariance)} vs baseline
+                            </p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 );
               })}
@@ -872,6 +927,21 @@ export function GanttChart({
                               {!isOnCriticalPath && taskSlackMap.has(task.id) && dependencies.length > 0 && (
                                 <p className="text-emerald-500 dark:text-emerald-400">
                                   Slack: {taskSlackMap.get(task.id)!.totalSlack} day{taskSlackMap.get(task.id)!.totalSlack !== 1 ? 's' : ''} available
+                                </p>
+                              )}
+                              {varianceMap.has(task.id) && varianceMap.get(task.id)!.hasBaseline && (
+                                <p className={cn(
+                                  varianceMap.get(task.id)!.status === 'behind'
+                                    ? "text-destructive"
+                                    : varianceMap.get(task.id)!.status === 'ahead'
+                                      ? "text-emerald-500 dark:text-emerald-400"
+                                      : "text-muted-foreground"
+                                )}>
+                                  {varianceMap.get(task.id)!.status === 'behind' 
+                                    ? `⚠️ ${varianceMap.get(task.id)!.endVariance}d behind baseline`
+                                    : varianceMap.get(task.id)!.status === 'ahead'
+                                      ? `✅ ${Math.abs(varianceMap.get(task.id)!.endVariance)}d ahead of baseline`
+                                      : '✓ On track with baseline'}
                                 </p>
                               )}
                               <p className="text-muted-foreground">Drag to move • Drag edges to resize • Use link icon to create dependencies</p>
