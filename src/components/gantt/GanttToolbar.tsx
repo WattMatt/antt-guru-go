@@ -1,4 +1,5 @@
 import { ViewMode, DependencyType } from '@/types/gantt';
+import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,6 +29,8 @@ interface GanttToolbarProps {
   onStatusFilterChange: (status: string) => void;
   ownerFilter: string;
   onOwnerFilterChange: (owner: string) => void;
+  colorFilter: string;
+  onColorFilterChange: (color: string) => void;
   owners: string[];
   isEmpty?: boolean;
   dependencyCount?: number;
@@ -53,6 +56,8 @@ export function GanttToolbar({
   onStatusFilterChange,
   ownerFilter,
   onOwnerFilterChange,
+  colorFilter,
+  onColorFilterChange,
   owners,
   isEmpty = false,
   dependencyCount = 0,
@@ -357,6 +362,54 @@ export function GanttToolbar({
             </TooltipTrigger>
             <TooltipContent>
               <p>Filter tasks by assigned team member</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <Select value={colorFilter} onValueChange={onColorFilterChange}>
+                  <SelectTrigger className="w-[140px]">
+                    <div className="flex items-center gap-2">
+                      {colorFilter !== 'all' && colorFilter !== 'none' && (
+                        <div 
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ 
+                            backgroundColor: TASK_COLOR_PRESETS.find(p => p.key === colorFilter)?.swatchColor 
+                          }}
+                        />
+                      )}
+                      <SelectValue placeholder="All Colors" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Colors</SelectItem>
+                    <SelectItem value="none">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full border border-muted-foreground/30"
+                          style={{ background: 'linear-gradient(135deg, #e5e7eb 50%, #9ca3af 50%)' }}
+                        />
+                        <span>No Color (Status)</span>
+                      </div>
+                    </SelectItem>
+                    {TASK_COLOR_PRESETS.map((preset) => (
+                      <SelectItem key={preset.key} value={preset.key}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: preset.swatchColor }}
+                          />
+                          <span>{preset.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Filter tasks by assigned color</p>
             </TooltipContent>
           </Tooltip>
 
