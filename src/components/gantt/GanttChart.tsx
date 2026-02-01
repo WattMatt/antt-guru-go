@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useRef } from 'react';
 import { Task, TaskDependency, ViewMode, DependencyType, GroupByMode, Milestone, BaselineTask } from '@/types/gantt';
+import { TaskSlackInfo } from '@/lib/criticalPath';
 import { getTaskColorPreset } from '@/lib/taskColors';
 import { format, differenceInDays, addDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isToday, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -9,7 +10,7 @@ import { GettingStartedGuide } from './GettingStartedGuide';
 import { useGanttDrag } from '@/hooks/useGanttDrag';
 import { useDependencyDrag } from '@/hooks/useDependencyDrag';
 import { useTaskReorder } from '@/hooks/useTaskReorder';
-import { GripVertical, Link2, Lightbulb, User, CheckCircle2, Circle, Clock, Diamond } from 'lucide-react';
+import { GripVertical, Link2, Lightbulb, User, CheckCircle2, Circle, Clock, Diamond, Timer } from 'lucide-react';
 import { DependencyArrows } from './DependencyArrows';
 import { DependencyDragLine } from './DependencyDragLine';
 import { MilestoneMarker } from './MilestoneMarker';
@@ -35,6 +36,7 @@ interface GanttChartProps {
   searchQuery?: string;
   criticalPathTaskIds?: Set<string>;
   baselineTasks?: BaselineTask[];
+  taskSlackMap?: Map<string, TaskSlackInfo>;
 }
 
 interface TaskGroup {
@@ -88,7 +90,8 @@ export function GanttChart({
   onReorderTask,
   searchQuery,
   criticalPathTaskIds = new Set(),
-  baselineTasks = []
+  baselineTasks = [],
+  taskSlackMap = new Map()
 }: GanttChartProps) {
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const { startDate, endDate, timeUnits, unitWidth } = useMemo(() => {
@@ -539,6 +542,45 @@ export function GanttChart({
                     )}>
                       <HighlightedText text={task.name} query={searchQuery} />
                     </span>
+                    {/* Slack indicator */}
+                    {taskSlackMap.has(task.id) && dependencies.length > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div 
+                            className={cn(
+                              "flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded",
+                              taskSlackMap.get(task.id)!.isCritical 
+                                ? "bg-orange-500/20 text-orange-600 dark:text-orange-400" 
+                                : taskSlackMap.get(task.id)!.totalSlack <= 2
+                                  ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400"
+                                  : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            <Timer className="h-3 w-3" />
+                            <span>{taskSlackMap.get(task.id)!.totalSlack}d</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="text-xs space-y-1">
+                            <p className="font-medium">
+                              {taskSlackMap.get(task.id)!.isCritical 
+                                ? '⚡ Critical Path - No slack' 
+                                : `Slack: ${taskSlackMap.get(task.id)!.totalSlack} day${taskSlackMap.get(task.id)!.totalSlack !== 1 ? 's' : ''}`}
+                            </p>
+                            {!taskSlackMap.get(task.id)!.isCritical && (
+                              <p className="text-muted-foreground">
+                                Can be delayed {taskSlackMap.get(task.id)!.totalSlack} day{taskSlackMap.get(task.id)!.totalSlack !== 1 ? 's' : ''} without affecting project end
+                              </p>
+                            )}
+                            {taskSlackMap.get(task.id)!.freeSlack !== taskSlackMap.get(task.id)!.totalSlack && (
+                              <p className="text-muted-foreground">
+                                Free slack: {taskSlackMap.get(task.id)!.freeSlack} day{taskSlackMap.get(task.id)!.freeSlack !== 1 ? 's' : ''}
+                              </p>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 );
               })}
@@ -825,7 +867,12 @@ export function GanttChart({
                               <p>{format(new Date(task.start_date), 'MMM d')} - {format(new Date(task.end_date), 'MMM d')}</p>
                               <p>Progress: {task.progress}%</p>
                               {isOnCriticalPath && (
-                                <p className="text-orange-400 font-medium">⚡ On Critical Path</p>
+                                <p className="text-orange-400 font-medium">⚡ On Critical Path (0 days slack)</p>
+                              )}
+                              {!isOnCriticalPath && taskSlackMap.has(task.id) && dependencies.length > 0 && (
+                                <p className="text-emerald-500 dark:text-emerald-400">
+                                  Slack: {taskSlackMap.get(task.id)!.totalSlack} day{taskSlackMap.get(task.id)!.totalSlack !== 1 ? 's' : ''} available
+                                </p>
                               )}
                               <p className="text-muted-foreground">Drag to move • Drag edges to resize • Use link icon to create dependencies</p>
                             </div>

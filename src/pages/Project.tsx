@@ -11,7 +11,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useFilterPresets, FilterPreset } from '@/hooks/useFilterPresets';
 import { useChartExport } from '@/hooks/useChartExport';
 import { TASK_COLOR_PRESETS } from '@/lib/taskColors';
-import { calculateCriticalPath } from '@/lib/criticalPath';
+import { calculateCriticalPathWithSlack, TaskSlackInfo } from '@/lib/criticalPath';
 import { Task, ViewMode, DependencyType, GroupByMode, ChartViewType, BaselineTask } from '@/types/gantt';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { ResourceWorkloadView } from '@/components/gantt/ResourceWorkloadView';
@@ -115,12 +115,16 @@ export default function Project() {
     );
   }, [dependencies]);
 
-  // Calculate critical path
-  const criticalPathTaskIds = useMemo(() => {
-    if (!showCriticalPath || dependencies.length === 0) {
-      return new Set<string>();
+  // Calculate critical path and slack
+  const { criticalPathTaskIds, taskSlackMap } = useMemo(() => {
+    if (dependencies.length === 0) {
+      return { criticalPathTaskIds: new Set<string>(), taskSlackMap: new Map<string, TaskSlackInfo>() };
     }
-    return calculateCriticalPath(tasks, dependencies);
+    const result = calculateCriticalPathWithSlack(tasks, dependencies);
+    return { 
+      criticalPathTaskIds: showCriticalPath ? result.criticalTaskIds : new Set<string>(),
+      taskSlackMap: result.taskSlack
+    };
   }, [tasks, dependencies, showCriticalPath]);
 
   // Get active baseline tasks for comparison
@@ -892,6 +896,7 @@ export default function Project() {
                   searchQuery={searchQuery}
                   criticalPathTaskIds={criticalPathTaskIds}
                   baselineTasks={activeBaselineTasks}
+                  taskSlackMap={taskSlackMap}
                 />
               ) : (
                 <ResourceWorkloadView

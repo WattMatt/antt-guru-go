@@ -14,20 +14,51 @@ interface TaskNode {
 }
 
 /**
- * Calculate the critical path for a set of tasks and dependencies.
+ * Task slack information
+ */
+export interface TaskSlackInfo {
+  taskId: string;
+  /** Total float/slack in days - how much the task can be delayed without affecting project end */
+  totalSlack: number;
+  /** Free float in days - how much the task can be delayed without affecting any successor */
+  freeSlack: number;
+  /** Earliest possible start (days from project start) */
+  earliestStart: number;
+  /** Latest possible start without delaying project (days from project start) */
+  latestStart: number;
+  /** Whether this task is on the critical path */
+  isCritical: boolean;
+}
+
+/**
+ * Result of critical path analysis
+ */
+export interface CriticalPathResult {
+  /** Set of task IDs on the critical path */
+  criticalTaskIds: Set<string>;
+  /** Slack information for each task */
+  taskSlack: Map<string, TaskSlackInfo>;
+}
+
+/**
+ * Calculate the critical path and slack for a set of tasks and dependencies.
  * The critical path is the longest sequence of dependent tasks that determines
  * the minimum project duration. Tasks on the critical path have zero slack.
  * 
  * @param tasks - Array of tasks
  * @param dependencies - Array of task dependencies
- * @returns Set of task IDs that are on the critical path
+ * @returns Critical path task IDs and slack information
  */
-export function calculateCriticalPath(
+export function calculateCriticalPathWithSlack(
   tasks: Task[],
   dependencies: TaskDependency[]
-): Set<string> {
+): CriticalPathResult {
+  const result: CriticalPathResult = {
+    criticalTaskIds: new Set(),
+    taskSlack: new Map()
+  };
   if (tasks.length === 0) {
-    return new Set();
+    return result;
   }
 
   // Build task node map
@@ -145,18 +176,42 @@ export function calculateCriticalPath(
     node.slack = node.latestStart - node.earliestStart;
   }
 
-  // Identify critical path tasks (tasks with zero or near-zero slack)
-  const criticalPathTasks = new Set<string>();
-  
+  // Calculate free slack (how much a task can be delayed without affecting successors)
   for (const [taskId, node] of nodes) {
-    // Tasks with slack <= 0 are on the critical path
-    if (node.slack <= 0) {
-      criticalPathTasks.add(taskId);
+    let freeSlack = Infinity;
+    
+    if (node.successors.length === 0) {
+      // No successors - free slack equals total slack
+      freeSlack = Math.max(0, node.slack);
+    } else {
+      // Free slack = min(successor earliest start) - this task's earliest finish
+      for (const succId of node.successors) {
+        const succNode = nodes.get(succId);
+        if (succNode) {
+          const gap = succNode.earliestStart - node.earliestFinish;
+          freeSlack = Math.min(freeSlack, Math.max(0, gap));
+        }
+      }
+    }
+    
+    const isCritical = node.slack <= 0;
+    
+    result.taskSlack.set(taskId, {
+      taskId,
+      totalSlack: Math.max(0, node.slack),
+      freeSlack: freeSlack === Infinity ? Math.max(0, node.slack) : freeSlack,
+      earliestStart: node.earliestStart,
+      latestStart: node.latestStart,
+      isCritical
+    });
+    
+    if (isCritical) {
+      result.criticalTaskIds.add(taskId);
     }
   }
 
   // If no tasks have zero slack (disconnected tasks), find the longest path
-  if (criticalPathTasks.size === 0 && tasks.length > 0) {
+  if (result.criticalTaskIds.size === 0 && tasks.length > 0) {
     // Find tasks that form the longest duration chain
     const endTasks = Array.from(nodes.values())
       .filter(n => n.successors.length === 0)
@@ -165,7 +220,12 @@ export function calculateCriticalPath(
     if (endTasks.length > 0) {
       // Trace back from the task with the latest finish time
       const tracePath = (taskId: string) => {
-        criticalPathTasks.add(taskId);
+        result.criticalTaskIds.add(taskId);
+        const slackInfo = result.taskSlack.get(taskId);
+        if (slackInfo) {
+          slackInfo.isCritical = true;
+        }
+        
         const node = nodes.get(taskId);
         if (node && node.predecessors.length > 0) {
           // Find the predecessor with the latest earliest finish (critical predecessor)
@@ -190,7 +250,19 @@ export function calculateCriticalPath(
     }
   }
 
-  return criticalPathTasks;
+  return result;
+}
+
+/**
+ * Legacy function for backward compatibility
+ * @deprecated Use calculateCriticalPathWithSlack instead
+ */
+export function calculateCriticalPath(
+  tasks: Task[],
+  dependencies: TaskDependency[]
+): Set<string> {
+  const result = calculateCriticalPathWithSlack(tasks, dependencies);
+  return result.criticalTaskIds;
 }
 
 /**
