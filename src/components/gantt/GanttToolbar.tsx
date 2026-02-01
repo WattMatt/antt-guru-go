@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { ViewMode, DependencyType } from '@/types/gantt';
 import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { FilterPreset } from '@/hooks/useFilterPresets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, File, Undo2, Redo2, Info, Trash2, Palette, X, Search, Bookmark, BookmarkPlus, CalendarIcon } from 'lucide-react';
 import { ColorLegend } from './ColorLegend';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -36,6 +38,9 @@ interface GanttToolbarProps {
   onOwnerFilterChange: (owner: string) => void;
   colorFilter: string[];
   onColorFilterChange: (colors: string[]) => void;
+  dateRangeStart: Date | null;
+  dateRangeEnd: Date | null;
+  onDateRangeChange: (start: Date | null, end: Date | null) => void;
   onClearFilters?: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
@@ -72,6 +77,9 @@ export function GanttToolbar({
   onOwnerFilterChange,
   colorFilter,
   onColorFilterChange,
+  dateRangeStart,
+  dateRangeEnd,
+  onDateRangeChange,
   onClearFilters,
   searchQuery,
   onSearchChange,
@@ -95,7 +103,7 @@ export function GanttToolbar({
   const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
   const [presetName, setPresetName] = useState('');
 
-  const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0;
+  const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0 || dateRangeStart || dateRangeEnd;
 
   const handleSavePreset = () => {
     if (presetName.trim() && onSavePreset) {
@@ -374,11 +382,11 @@ export function GanttToolbar({
           {/* Filters label with active count badge */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Filters:</span>
-            {(searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0) && (
+            {hasActiveFilters && (
               <Popover>
                 <PopoverTrigger asChild>
                   <button className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 cursor-pointer transition-colors">
-                    {[searchQuery.trim(), statusFilter !== 'all', ownerFilter !== 'all', colorFilter.length > 0].filter(Boolean).length}
+                    {[searchQuery.trim(), statusFilter !== 'all', ownerFilter !== 'all', colorFilter.length > 0, dateRangeStart || dateRangeEnd].filter(Boolean).length}
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-3" align="start">
@@ -428,6 +436,20 @@ export function GanttToolbar({
                               <span className="text-xs text-muted-foreground">+{colorFilter.length - 4}</span>
                             )}
                           </div>
+                        </div>
+                      )}
+                      {(dateRangeStart || dateRangeEnd) && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Date range:</span>
+                          <span className="font-medium">
+                            {dateRangeStart && dateRangeEnd ? (
+                              `${format(dateRangeStart, 'MMM d')} - ${format(dateRangeEnd, 'MMM d')}`
+                            ) : dateRangeStart ? (
+                              `From ${format(dateRangeStart, 'MMM d')}`
+                            ) : dateRangeEnd ? (
+                              `Until ${format(dateRangeEnd, 'MMM d')}`
+                            ) : null}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -632,8 +654,89 @@ export function GanttToolbar({
             </TooltipContent>
           </Tooltip>
 
+          {/* Date Range Filter */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className={cn(
+                        "min-w-[160px] justify-start text-left font-normal",
+                        (dateRangeStart || dateRangeEnd) && "border-primary"
+                      )}
+                    >
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      {dateRangeStart && dateRangeEnd ? (
+                        <span className="truncate">
+                          {format(dateRangeStart, 'MMM d')} - {format(dateRangeEnd, 'MMM d')}
+                        </span>
+                      ) : dateRangeStart ? (
+                        <span className="truncate">From {format(dateRangeStart, 'MMM d')}</span>
+                      ) : dateRangeEnd ? (
+                        <span className="truncate">Until {format(dateRangeEnd, 'MMM d')}</span>
+                      ) : (
+                        <span className="text-muted-foreground">Date range</span>
+                      )}
+                      {(dateRangeStart || dateRangeEnd) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDateRangeChange(null, null);
+                          }}
+                          className="ml-auto hover:bg-muted rounded p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-4" align="start">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Start Date</Label>
+                        <Calendar
+                          mode="single"
+                          selected={dateRangeStart ?? undefined}
+                          onSelect={(date) => onDateRangeChange(date ?? null, dateRangeEnd)}
+                          className={cn("p-3 pointer-events-auto rounded-md border")}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">End Date</Label>
+                        <Calendar
+                          mode="single"
+                          selected={dateRangeEnd ?? undefined}
+                          onSelect={(date) => onDateRangeChange(dateRangeStart, date ?? null)}
+                          disabled={(date) => dateRangeStart ? date < dateRangeStart : false}
+                          className={cn("p-3 pointer-events-auto rounded-md border")}
+                        />
+                      </div>
+                      {(dateRangeStart || dateRangeEnd) && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => onDateRangeChange(null, null)}
+                        >
+                          <X className="h-3 w-3 mr-2" />
+                          Clear date range
+                        </Button>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Filter tasks by date range</p>
+            </TooltipContent>
+          </Tooltip>
+
           {/* Clear Filters button - only show when filters are active */}
-          {(searchQuery.trim() || statusFilter !== 'all' || ownerFilter !== 'all' || colorFilter.length > 0) && onClearFilters && (
+          {hasActiveFilters && onClearFilters && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
@@ -771,6 +874,15 @@ export function GanttToolbar({
                 {statusFilter !== 'all' && <li>Status: {statusFilter.replace('_', ' ')}</li>}
                 {ownerFilter !== 'all' && <li>Owner: {ownerFilter}</li>}
                 {colorFilter.length > 0 && <li>{colorFilter.length} color(s) selected</li>}
+                {(dateRangeStart || dateRangeEnd) && (
+                  <li>
+                    Date: {dateRangeStart && dateRangeEnd 
+                      ? `${format(dateRangeStart, 'MMM d')} - ${format(dateRangeEnd, 'MMM d')}`
+                      : dateRangeStart 
+                        ? `From ${format(dateRangeStart, 'MMM d')}`
+                        : `Until ${format(dateRangeEnd!, 'MMM d')}`}
+                  </li>
+                )}
               </ul>
             </div>
           </div>
