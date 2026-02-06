@@ -22,6 +22,8 @@ import { ProgressPanel } from '@/components/gantt/ProgressPanel';
 import { OnboardingChecklist } from '@/components/gantt/OnboardingChecklist';
 import { BulkActionsBar } from '@/components/gantt/BulkActionsBar';
 import { KeyboardShortcutsModal } from '@/components/gantt/KeyboardShortcutsModal';
+import { ImportProgramDialog } from '@/components/gantt/ImportProgramDialog';
+import { ParsedProgramTask } from '@/lib/programImport';
 import { Confetti } from '@/components/ui/confetti';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -76,6 +78,7 @@ export default function Project() {
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showCriticalPath, setShowCriticalPath] = useState(false);
   const [activeBaselineId, setActiveBaselineId] = useState<string | null>(null);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -525,6 +528,32 @@ export default function Project() {
     }
   }, [duplicateTask]);
 
+  // Import program handler
+  const handleImportProgram = useCallback(async (importedTasks: ParsedProgramTask[]) => {
+    try {
+      let successCount = 0;
+      for (const task of importedTasks) {
+        await createTask.mutateAsync({
+          project_id: projectId!,
+          name: task.name,
+          description: task.quantity && task.unit ? `Qty: ${task.quantity} ${task.unit}` : null,
+          start_date: task.startDate,
+          end_date: task.endDate,
+          status: 'not_started',
+          owner: null,
+          progress: 0,
+          sort_order: tasks.length + successCount,
+          color: null
+        });
+        successCount++;
+      }
+      toast.success(`Imported ${successCount} tasks from Excel`);
+    } catch (error) {
+      toast.error('Failed to import some tasks');
+      throw error;
+    }
+  }, [createTask, projectId, tasks.length]);
+
   // Undo handler
   const handleUndo = useCallback(async () => {
     const action = popUndo();
@@ -880,6 +909,7 @@ export default function Project() {
                 onUpdateBaseline={handleUpdateBaseline}
                 onDeleteBaseline={handleDeleteBaseline}
                 taskCount={tasks.length}
+                onImportProgram={() => setIsImportDialogOpen(true)}
               />
             </div>
 
@@ -959,6 +989,15 @@ export default function Project() {
           onOpenChange={setIsMilestoneFormOpen}
           onSubmit={handleMilestoneSubmit}
           onDelete={handleDeleteMilestone}
+        />
+      </div>
+
+      {/* Import Program Dialog - hide during print */}
+      <div className="print-hidden">
+        <ImportProgramDialog
+          open={isImportDialogOpen}
+          onOpenChange={setIsImportDialogOpen}
+          onImport={handleImportProgram}
         />
       </div>
     </div>
