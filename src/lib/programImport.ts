@@ -86,13 +86,17 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
   console.log('[Import] Month headers found:', monthHeaders.length, monthHeaders);
   
   // Step 2: Find the row with consecutive day numbers (the calendar day row)
+  // The calendar starts around column H (index 7) - ignore earlier columns
+  const CALENDAR_START_COL = 7; // Column H
+  
   let dayRowIndex = -1;
   let dayColumns: { col: number; day: number }[] = [];
   
   for (let r = 0; r <= Math.min(25, range.e.r); r++) {
     const rowDays: { col: number; day: number }[] = [];
     
-    for (let c = 0; c <= range.e.c; c++) {
+    // Only scan columns from the calendar area (column H onwards)
+    for (let c = CALENDAR_START_COL; c <= range.e.c; c++) {
       const cellAddress = XLSX.utils.encode_cell({ r, c });
       const cell = sheet[cellAddress];
       if (!cell) continue;
@@ -115,6 +119,7 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
     }
     
     // Check if this row has many day values with consecutive patterns
+    // Need at least 20 day cells to be the calendar row
     if (rowDays.length >= 20) {
       let consecutiveCount = 0;
       for (let i = 1; i < Math.min(10, rowDays.length); i++) {
@@ -127,7 +132,8 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
         dayRowIndex = r;
         dayColumns = rowDays;
         console.log(`[Import] Found calendar day row at index ${r} with ${rowDays.length} day cells`);
-        console.log(`[Import] First day column: col ${rowDays[0].col}, day ${rowDays[0].day}`);
+        console.log(`[Import] First day: col ${rowDays[0].col} = day ${rowDays[0].day}`);
+        console.log(`[Import] Last day: col ${rowDays[rowDays.length-1].col} = day ${rowDays[rowDays.length-1].day}`);
         break;
       }
     }
@@ -225,22 +231,20 @@ function findTaskDateRange(
   let firstMarkerCol: number | null = null;
   let lastMarkerCol: number | null = null;
   
-  // Get all date columns we know about
+  // Get all date columns we know about, sorted
   const dateColumns = Object.keys(dateMap).map(Number).sort((a, b) => a - b);
   
+  // Scan for markers in this row
   for (let c = startCol; c <= range.e.c; c++) {
     const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c });
     const cell = sheet[cellAddress];
     
-    // Check for various marker values: 1, "1", or any non-empty truthy value in date columns
+    // Check for marker values: 1, "1", or positive numbers
     let isMarker = false;
     if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
-      // Check if it's explicitly 1 or "1"
       if (cell.v === 1 || cell.v === '1') {
         isMarker = true;
-      }
-      // Also check for any numeric value that indicates work (some sheets use other markers)
-      else if (typeof cell.v === 'number' && cell.v > 0) {
+      } else if (typeof cell.v === 'number' && cell.v > 0) {
         isMarker = true;
       }
     }
@@ -256,37 +260,56 @@ function findTaskDateRange(
   let startDate: Date | null = null;
   let endDate: Date | null = null;
   
-  // Find the closest date column for the first marker
-  if (firstMarkerCol !== null) {
-    // First try exact match
+  // If we found markers, map them to dates
+  if (firstMarkerCol !== null && dateColumns.length > 0) {
+    // The marker column should directly correspond to a date column
+    // If not exact match, find the NEAREST date column (not just the one before)
+    
     if (dateMap[firstMarkerCol]) {
       startDate = dateMap[firstMarkerCol];
     } else {
-      // Find the closest date column
-      const closestStart = dateColumns.reduce((closest, col) => {
-        if (col <= firstMarkerCol && (!closest || col > closest)) return col;
-        return closest;
-      }, null as number | null);
-      if (closestStart !== null && dateMap[closestStart]) {
-        startDate = dateMap[closestStart];
+      // Find closest date column to the marker
+      let closestCol: number | null = null;
+      let minDist = Infinity;
+      
+      for (const col of dateColumns) {
+        const dist = Math.abs(col - firstMarkerCol);
+        if (dist < minDist) {
+          minDist = dist;
+          closestCol = col;
+        }
+      }
+      
+      if (closestCol !== null && minDist <= 2) { // Allow 2 column offset
+        startDate = dateMap[closestCol];
       }
     }
   }
   
-  // Find the closest date column for the last marker
-  if (lastMarkerCol !== null) {
+  if (lastMarkerCol !== null && dateColumns.length > 0) {
     if (dateMap[lastMarkerCol]) {
       endDate = dateMap[lastMarkerCol];
     } else {
-      // Find the closest date column (could be after or before)
-      const closestEnd = dateColumns.reduce((closest, col) => {
-        if (col <= lastMarkerCol && (!closest || col > closest)) return col;
-        return closest;
-      }, null as number | null);
-      if (closestEnd !== null && dateMap[closestEnd]) {
-        endDate = dateMap[closestEnd];
+      let closestCol: number | null = null;
+      let minDist = Infinity;
+      
+      for (const col of dateColumns) {
+        const dist = Math.abs(col - lastMarkerCol);
+        if (dist < minDist) {
+          minDist = dist;
+          closestCol = col;
+        }
+      }
+      
+      if (closestCol !== null && minDist <= 2) {
+        endDate = dateMap[closestCol];
       }
     }
+  }
+  
+  // Debug: log when we can't find dates
+  if (firstMarkerCol !== null && !startDate) {
+    console.log(`[Import] Row ${rowIndex}: Found marker at col ${firstMarkerCol} but no matching date. Date columns range: ${dateColumns[0]}-${dateColumns[dateColumns.length-1]}`);
   }
   
   return { startDate, endDate };
