@@ -104,8 +104,27 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
   dayColumns.sort((a, b) => a.col - b.col);
   
   // Step 2: Find month headers in rows ABOVE the day row
-  // Look for patterns like "Feb-26", "Mar-26", "Apr-26"
+  // Look for patterns like "Feb-26", "Mar-26", "Apr-26" in various formats
   const monthHeaders: { col: number; month: string; year: number }[] = [];
+  
+  // Debug: Log all cells in the first few rows to understand the structure
+  console.log('[Import] Scanning rows 0 to', dayRowIndex - 1, 'for month headers');
+  
+  for (let r = 0; r < dayRowIndex; r++) {
+    const rowCells: { col: number; value: unknown; type: string; formatted?: string }[] = [];
+    
+    for (let c = 0; c <= Math.min(range.e.c, 20); c++) {
+      const cellAddress = XLSX.utils.encode_cell({ r, c });
+      const cell = sheet[cellAddress];
+      if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
+        rowCells.push({ col: c, value: cell.v, type: cell.t, formatted: cell.w });
+      }
+    }
+    
+    if (rowCells.length > 0) {
+      console.log(`[Import] Row ${r} sample cells:`, rowCells.slice(0, 8));
+    }
+  }
   
   for (let r = 0; r < dayRowIndex; r++) {
     for (let c = 0; c <= range.e.c; c++) {
@@ -114,32 +133,94 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
       if (!cell) continue;
       
       const value = cell.v;
+      const formatted = cell.w; // Formatted value (what you see in Excel)
       
-      // Check if it's a month label (e.g., "Feb-26", "Mar-26", "Apr-26")
-      if (typeof value === 'string' && /^[A-Za-z]{3}-\d{2}$/.test(value)) {
-        const [monthAbbr, yearSuffix] = value.split('-');
-        const monthIndex = getMonthIndex(monthAbbr);
-        if (monthIndex !== -1) {
+      // Method 1: Check formatted value first (e.g., "Feb-26")
+      if (formatted && typeof formatted === 'string') {
+        const match = formatted.match(/^([A-Za-z]{3})-(\d{2})$/);
+        if (match) {
+          const monthIndex = getMonthIndex(match[1]);
+          if (monthIndex !== -1) {
+            monthHeaders.push({
+              col: c,
+              month: match[1],
+              year: 2000 + parseInt(match[2])
+            });
+            console.log(`[Import] Found month header (formatted): ${formatted} at column ${c}, row ${r}`);
+            continue;
+          }
+        }
+      }
+      
+      // Method 2: Check if it's a date stored as Excel serial number
+      if (cell.t === 'd' || (cell.t === 'n' && typeof value === 'number' && value > 40000 && value < 50000)) {
+        const date = cell.t === 'd' ? (value as Date) : excelDateToJS(value as number);
+        const month = date.getMonth();
+        const year = date.getFullYear();
+        const monthAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month];
+        
+        // Only add if it looks like a month-year header (first day of month or reasonable date)
+        if (date.getDate() === 1 || c > 5) { // Column > 5 suggests calendar area
           monthHeaders.push({
             col: c,
             month: monthAbbr,
-            year: 2000 + parseInt(yearSuffix)
+            year: year
           });
-          console.log(`[Import] Found month header: ${value} at column ${c}`);
+          console.log(`[Import] Found month header (date serial): ${monthAbbr}-${year.toString().slice(-2)} at column ${c}, row ${r}`);
+          continue;
+        }
+      }
+      
+      // Method 3: Check string value with flexible patterns
+      if (typeof value === 'string') {
+        // Pattern: "Feb-26", "FEB-26", "feb-26"
+        let match = value.match(/^([A-Za-z]{3})-(\d{2})$/);
+        if (match) {
+          const monthIndex = getMonthIndex(match[1]);
+          if (monthIndex !== -1) {
+            monthHeaders.push({
+              col: c,
+              month: match[1],
+              year: 2000 + parseInt(match[2])
+            });
+            console.log(`[Import] Found month header (string): ${value} at column ${c}, row ${r}`);
+            continue;
+          }
+        }
+        
+        // Pattern: "February 2026", "Feb 2026", etc.
+        match = value.match(/^([A-Za-z]+)\s*(\d{4})$/);
+        if (match) {
+          const monthIndex = getMonthIndex(match[1].slice(0, 3));
+          if (monthIndex !== -1) {
+            monthHeaders.push({
+              col: c,
+              month: match[1].slice(0, 3),
+              year: parseInt(match[2])
+            });
+            console.log(`[Import] Found month header (long format): ${value} at column ${c}, row ${r}`);
+          }
         }
       }
     }
   }
   
-  // Sort month headers by column
+  // Sort month headers by column and deduplicate (keep first occurrence per month-year)
   monthHeaders.sort((a, b) => a.col - b.col);
+  const seenMonths = new Set<string>();
+  const uniqueMonthHeaders = monthHeaders.filter(h => {
+    const key = `${h.month}-${h.year}`;
+    if (seenMonths.has(key)) return false;
+    seenMonths.add(key);
+    return true;
+  });
   
-  console.log('[Import] Found month headers:', monthHeaders);
+  console.log('[Import] Unique month headers:', uniqueMonthHeaders);
   console.log('[Import] Found day columns count:', dayColumns.length, 'from row', dayRowIndex);
   console.log('[Import] First few day columns:', dayColumns.slice(0, 10));
   console.log('[Import] Last few day columns:', dayColumns.slice(-10));
   
-  if (monthHeaders.length === 0) {
+  if (uniqueMonthHeaders.length === 0) {
     console.warn('[Import] Could not find month headers, will use day reset detection only');
     // We can still try to infer months from day resets if we have a known start
   }
@@ -162,7 +243,7 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
         console.log(`[Import] Month transition detected at col ${col}: day ${prevDay} → ${day} (transition #${monthTransitions})`);
         
         // Move to next month if available
-        if (currentMonthIdx < monthHeaders.length - 1) {
+        if (currentMonthIdx < uniqueMonthHeaders.length - 1) {
           currentMonthIdx++;
         }
       }
@@ -172,8 +253,8 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
     let monthIndex: number;
     let year: number;
     
-    if (monthHeaders.length > 0) {
-      const currentMonth = monthHeaders[Math.min(currentMonthIdx, monthHeaders.length - 1)];
+    if (uniqueMonthHeaders.length > 0) {
+      const currentMonth = uniqueMonthHeaders[Math.min(currentMonthIdx, uniqueMonthHeaders.length - 1)];
       monthIndex = getMonthIndex(currentMonth.month);
       year = currentMonth.year;
     } else {
