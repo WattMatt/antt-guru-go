@@ -1,17 +1,20 @@
 import { useCallback, RefObject } from 'react';
 import { toPng, toJpeg, toSvg } from 'html-to-image';
-import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { exportProfessionalPdf } from '@/lib/pdfExport';
+import { Task, Milestone } from '@/types/gantt';
 
 type ExportFormat = 'png' | 'jpeg' | 'svg' | 'pdf';
 
 interface UseChartExportOptions {
   chartRef: RefObject<HTMLDivElement>;
   projectName: string;
+  tasks: Task[];
+  milestones: Milestone[];
 }
 
-export function useChartExport({ chartRef, projectName }: UseChartExportOptions) {
+export function useChartExport({ chartRef, projectName, tasks, milestones }: UseChartExportOptions) {
   const getFileName = useCallback((extension: string) => {
     const sanitizedName = projectName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
     const dateStr = format(new Date(), 'yyyy-MM-dd');
@@ -48,49 +51,37 @@ export function useChartExport({ chartRef, projectName }: UseChartExportOptions)
   }, [chartRef, getFileName]);
 
   const exportAsPdf = useCallback(async () => {
-    if (!chartRef.current) {
-      toast.error('Chart not found');
-      return;
-    }
-
     try {
-      toast.loading('Generating PDF...', { id: 'export' });
+      toast.loading('Generating PDF report...', { id: 'export' });
 
-      const dataUrl = await toPng(chartRef.current, {
-        quality: 0.95,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        cacheBust: true,
+      // Generate chart image if available
+      let chartImageDataUrl: string | undefined;
+      if (chartRef.current) {
+        try {
+          chartImageDataUrl = await toPng(chartRef.current, {
+            quality: 0.95,
+            pixelRatio: 2,
+            backgroundColor: '#ffffff',
+            cacheBust: true,
+          });
+        } catch {
+          console.warn('Could not capture chart image for PDF');
+        }
+      }
+
+      await exportProfessionalPdf({
+        projectName,
+        tasks,
+        milestones,
+        chartImageDataUrl,
       });
 
-      const img = new Image();
-      img.src = dataUrl;
-      
-      await new Promise((resolve) => {
-        img.onload = resolve;
-      });
-
-      // Calculate dimensions maintaining aspect ratio
-      const imgWidth = img.width;
-      const imgHeight = img.height;
-      
-      // Use landscape for wide charts
-      const isLandscape = imgWidth > imgHeight;
-      const pdf = new jsPDF({
-        orientation: isLandscape ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [imgWidth / 2, imgHeight / 2],
-      });
-
-      pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidth / 2, imgHeight / 2);
-      pdf.save(getFileName('pdf'));
-
-      toast.success('PDF downloaded!', { id: 'export' });
+      toast.success('PDF report downloaded!', { id: 'export' });
     } catch (error) {
       console.error('PDF export failed:', error);
       toast.error('Failed to export PDF', { id: 'export' });
     }
-  }, [chartRef, getFileName]);
+  }, [chartRef, projectName, tasks, milestones]);
 
   const exportChart = useCallback(async (format: ExportFormat) => {
     if (format === 'pdf') {
