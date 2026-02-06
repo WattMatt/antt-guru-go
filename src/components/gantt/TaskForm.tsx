@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Task, TaskStatus } from '@/types/gantt';
 import { TASK_COLOR_PRESETS, TaskColorKey } from '@/lib/taskColors';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,20 @@ export function TaskForm({ open, onOpenChange, onSubmit, onDuplicate, projectId,
   const [owner, setOwner] = useState(task?.owner ?? '');
   const [progress, setProgress] = useState(task?.progress ?? 0);
   const [color, setColor] = useState<string | null>(task?.color ?? null);
+
+  // Sync form state when task prop changes (for editing different tasks)
+  useEffect(() => {
+    if (open) {
+      setName(task?.name ?? '');
+      setDescription(task?.description ?? '');
+      setStartDate(task?.start_date ? new Date(task.start_date) : new Date());
+      setEndDate(task?.end_date ? new Date(task.end_date) : new Date());
+      setStatus(task?.status ?? 'not_started');
+      setOwner(task?.owner ?? '');
+      setProgress(task?.progress ?? 0);
+      setColor(task?.color ?? null);
+    }
+  }, [task, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
