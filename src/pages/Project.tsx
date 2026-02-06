@@ -552,7 +552,7 @@ export default function Project() {
       for (const task of importedTasks) {
         await createTask.mutateAsync({
           project_id: projectId!,
-          name: task.name,
+          name: task.rowNumber ? `${task.rowNumber} - ${task.name}` : task.name,
           description: task.quantity && task.unit ? `Qty: ${task.quantity} ${task.unit}` : null,
           start_date: task.startDate,
           end_date: task.endDate,
