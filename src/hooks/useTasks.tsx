@@ -190,6 +190,40 @@ export function useTasks(projectId: string | undefined) {
     }
   });
 
+  const clearAllTasks = useMutation({
+    mutationFn: async () => {
+      if (!projectId) throw new Error('No project ID');
+      
+      // Delete all dependencies first (to avoid foreign key issues)
+      const { data: taskIds } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('project_id', projectId);
+      
+      if (taskIds && taskIds.length > 0) {
+        const ids = taskIds.map(t => t.id);
+        
+        // Delete dependencies
+        await supabase
+          .from('task_dependencies')
+          .delete()
+          .or(`predecessor_id.in.(${ids.join(',')}),successor_id.in.(${ids.join(',')})`);
+        
+        // Delete all tasks
+        const { error } = await supabase
+          .from('tasks')
+          .delete()
+          .eq('project_id', projectId);
+
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['dependencies', projectId] });
+    }
+  });
+
   const reorderTasks = useMutation({
     mutationFn: async ({ taskId, newIndex, tasks: currentTasks }: { taskId: string; newIndex: number; tasks: Task[] }) => {
       const currentIndex = currentTasks.findIndex(t => t.id === taskId);
@@ -274,6 +308,7 @@ export function useTasks(projectId: string | undefined) {
     toggleTaskStatus,
     bulkUpdateTasks,
     bulkDeleteTasks,
+    clearAllTasks,
     reorderTasks,
     duplicateTask
   };
