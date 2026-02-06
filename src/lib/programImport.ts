@@ -93,32 +93,43 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
   // Sort day columns by column index
   dayColumns.sort((a, b) => a.col - b.col);
   
+  console.log('[Import] Found month headers:', monthHeaders);
+  console.log('[Import] Found day columns count:', dayColumns.length, 'from row', dayRowIndex);
+  console.log('[Import] First few day columns:', dayColumns.slice(0, 10));
+  console.log('[Import] Last few day columns:', dayColumns.slice(-10));
+  
   if (monthHeaders.length === 0 || dayColumns.length === 0) {
     console.warn('Could not find month headers or day columns');
     return dateMap;
   }
   
   // Now assign each day column to a month
-  // The key is detecting when day numbers reset (e.g., 28→1 means month change)
+  // Key insight: Days reset when month changes (e.g., Feb 28 → Mar 1, or Mar 31 → Apr 1)
+  // We track these resets to correctly assign months to each day column
   let currentMonthIdx = 0;
   let prevDay = 0;
+  let monthTransitions = 0; // Track how many times we've seen day resets
   
   for (const dayCol of dayColumns) {
     const { col, day } = dayCol;
     
-    // Detect month change: day decreased significantly (reset) or we passed a month header
-    if (prevDay > 0 && day < prevDay && (prevDay - day) > 5) {
-      // Day reset detected (e.g., 28 → 1 or 31 → 1)
-      currentMonthIdx = Math.min(currentMonthIdx + 1, monthHeaders.length - 1);
+    // Detect month transition: day number decreased significantly (reset)
+    // This happens when going from end of month (28, 29, 30, 31) to start of next month (1, 2, 3)
+    if (prevDay > 0 && day < prevDay) {
+      // Only count as transition if previous day was reasonably high (> 20)
+      // and current day is reasonably low (< 10)
+      if (prevDay >= 20 && day <= 10) {
+        monthTransitions++;
+        console.log(`[Import] Month transition detected at col ${col}: day ${prevDay} → ${day} (transition #${monthTransitions})`);
+        
+        // Move to next month if available
+        if (currentMonthIdx < monthHeaders.length - 1) {
+          currentMonthIdx++;
+        }
+      }
     }
     
-    // Also check if we passed a new month header column
-    while (currentMonthIdx < monthHeaders.length - 1 && 
-           col >= monthHeaders[currentMonthIdx + 1].col) {
-      currentMonthIdx++;
-    }
-    
-    const currentMonth = monthHeaders[currentMonthIdx];
+    const currentMonth = monthHeaders[Math.min(currentMonthIdx, monthHeaders.length - 1)];
     const monthIndex = getMonthIndex(currentMonth.month);
     
     if (monthIndex !== -1) {
@@ -127,6 +138,15 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
     }
     
     prevDay = day;
+  }
+  
+  // Log the date range we found
+  const dateValues = Object.values(dateMap);
+  if (dateValues.length > 0) {
+    const minDate = new Date(Math.min(...dateValues.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...dateValues.map(d => d.getTime())));
+    console.log('[Import] Date map range:', minDate.toISOString().split('T')[0], 'to', maxDate.toISOString().split('T')[0]);
+    console.log('[Import] Total month transitions detected:', monthTransitions);
   }
   
   return dateMap;
@@ -164,11 +184,27 @@ function findTaskDateRange(
   let firstMarkerCol: number | null = null;
   let lastMarkerCol: number | null = null;
   
+  // Get all date columns we know about
+  const dateColumns = Object.keys(dateMap).map(Number).sort((a, b) => a - b);
+  
   for (let c = startCol; c <= range.e.c; c++) {
     const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c });
     const cell = sheet[cellAddress];
     
-    if (cell && (cell.v === 1 || cell.v === '1')) {
+    // Check for various marker values: 1, "1", or any non-empty truthy value in date columns
+    let isMarker = false;
+    if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
+      // Check if it's explicitly 1 or "1"
+      if (cell.v === 1 || cell.v === '1') {
+        isMarker = true;
+      }
+      // Also check for any numeric value that indicates work (some sheets use other markers)
+      else if (typeof cell.v === 'number' && cell.v > 0) {
+        isMarker = true;
+      }
+    }
+    
+    if (isMarker) {
       if (firstMarkerCol === null) {
         firstMarkerCol = c;
       }
@@ -179,12 +215,37 @@ function findTaskDateRange(
   let startDate: Date | null = null;
   let endDate: Date | null = null;
   
-  if (firstMarkerCol !== null && dateMap[firstMarkerCol]) {
-    startDate = dateMap[firstMarkerCol];
+  // Find the closest date column for the first marker
+  if (firstMarkerCol !== null) {
+    // First try exact match
+    if (dateMap[firstMarkerCol]) {
+      startDate = dateMap[firstMarkerCol];
+    } else {
+      // Find the closest date column
+      const closestStart = dateColumns.reduce((closest, col) => {
+        if (col <= firstMarkerCol && (!closest || col > closest)) return col;
+        return closest;
+      }, null as number | null);
+      if (closestStart !== null && dateMap[closestStart]) {
+        startDate = dateMap[closestStart];
+      }
+    }
   }
   
-  if (lastMarkerCol !== null && dateMap[lastMarkerCol]) {
-    endDate = dateMap[lastMarkerCol];
+  // Find the closest date column for the last marker
+  if (lastMarkerCol !== null) {
+    if (dateMap[lastMarkerCol]) {
+      endDate = dateMap[lastMarkerCol];
+    } else {
+      // Find the closest date column (could be after or before)
+      const closestEnd = dateColumns.reduce((closest, col) => {
+        if (col <= lastMarkerCol && (!closest || col > closest)) return col;
+        return closest;
+      }, null as number | null);
+      if (closestEnd !== null && dateMap[closestEnd]) {
+        endDate = dateMap[closestEnd];
+      }
+    }
   }
   
   return { startDate, endDate };
