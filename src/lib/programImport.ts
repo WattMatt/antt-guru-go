@@ -234,12 +234,20 @@ function findTaskDateRange(
   // Get all date columns we know about, sorted
   const dateColumns = Object.keys(dateMap).map(Number).sort((a, b) => a - b);
   
-  // Scan for markers in this row
-  for (let c = startCol; c <= range.e.c; c++) {
+  if (dateColumns.length === 0) {
+    console.log(`[Import] Row ${rowIndex}: No date columns available`);
+    return { startDate: null, endDate: null };
+  }
+  
+  const minDateCol = dateColumns[0];
+  const maxDateCol = dateColumns[dateColumns.length - 1];
+  
+  // Scan for markers in this row - ONLY within the date column range
+  for (let c = minDateCol; c <= maxDateCol; c++) {
     const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c });
     const cell = sheet[cellAddress];
     
-    // Check for marker values: 1, "1", or positive numbers
+    // Check for marker values: 1, "1", or any positive number
     let isMarker = false;
     if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
       if (cell.v === 1 || cell.v === '1') {
@@ -261,14 +269,12 @@ function findTaskDateRange(
   let endDate: Date | null = null;
   
   // If we found markers, map them to dates
-  if (firstMarkerCol !== null && dateColumns.length > 0) {
-    // The marker column should directly correspond to a date column
-    // If not exact match, find the NEAREST date column (not just the one before)
-    
+  if (firstMarkerCol !== null) {
+    // Direct lookup first
     if (dateMap[firstMarkerCol]) {
       startDate = dateMap[firstMarkerCol];
     } else {
-      // Find closest date column to the marker
+      // Find closest date column
       let closestCol: number | null = null;
       let minDist = Infinity;
       
@@ -280,13 +286,15 @@ function findTaskDateRange(
         }
       }
       
-      if (closestCol !== null && minDist <= 2) { // Allow 2 column offset
+      if (closestCol !== null && minDist <= 3) {
         startDate = dateMap[closestCol];
       }
     }
+    
+    console.log(`[Import] Row ${rowIndex}: First marker at col ${firstMarkerCol} → ${startDate?.toISOString().split('T')[0] || 'null'}`);
   }
   
-  if (lastMarkerCol !== null && dateColumns.length > 0) {
+  if (lastMarkerCol !== null) {
     if (dateMap[lastMarkerCol]) {
       endDate = dateMap[lastMarkerCol];
     } else {
@@ -301,15 +309,16 @@ function findTaskDateRange(
         }
       }
       
-      if (closestCol !== null && minDist <= 2) {
+      if (closestCol !== null && minDist <= 3) {
         endDate = dateMap[closestCol];
       }
     }
+    
+    console.log(`[Import] Row ${rowIndex}: Last marker at col ${lastMarkerCol} → ${endDate?.toISOString().split('T')[0] || 'null'}`);
   }
   
-  // Debug: log when we can't find dates
-  if (firstMarkerCol !== null && !startDate) {
-    console.log(`[Import] Row ${rowIndex}: Found marker at col ${firstMarkerCol} but no matching date. Date columns range: ${dateColumns[0]}-${dateColumns[dateColumns.length-1]}`);
+  if (firstMarkerCol === null) {
+    console.log(`[Import] Row ${rowIndex}: No markers found in date range cols ${minDateCol}-${maxDateCol}`);
   }
   
   return { startDate, endDate };
