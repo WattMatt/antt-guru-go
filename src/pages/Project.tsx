@@ -86,7 +86,7 @@ export default function Project() {
   const project = projects.find(p => p.id === projectId);
 
   // Chart export functionality
-  const { exportAsPng, exportAsJpeg, exportAsPdf } = useChartExport({
+  const { exportAsPng, exportAsJpeg, exportAsPdfPortrait, exportAsPdfLandscape } = useChartExport({
     chartRef,
     projectName: project?.name ?? 'gantt-chart',
     tasks,
@@ -751,7 +751,7 @@ export default function Project() {
     tasks,
     projectId: projectId ?? '',
     onAddTask: handleAddTask,
-    onExport: exportAsPdf
+    onExport: exportAsPdfPortrait
   });
 
   // Baseline handlers
@@ -881,7 +881,8 @@ export default function Project() {
                 onAddTask={handleAddTask}
                 onAddMilestone={handleAddMilestone}
                 milestoneCount={milestones.length}
-                onExportPdf={exportAsPdf}
+                onExportPdfPortrait={exportAsPdfPortrait}
+                onExportPdfLandscape={exportAsPdfLandscape}
                 onExportPng={exportAsPng}
                 onExportJpeg={exportAsJpeg}
                 onExportExcel={handleExportExcel}

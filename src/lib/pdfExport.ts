@@ -2,11 +2,14 @@ import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 import { Task, Milestone } from '@/types/gantt';
 
+export type PdfOrientation = 'portrait' | 'landscape';
+
 interface PdfExportOptions {
   projectName: string;
   tasks: Task[];
   milestones: Milestone[];
   chartImageDataUrl?: string;
+  orientation?: PdfOrientation;
 }
 
 // Colors
@@ -19,10 +22,10 @@ const WARNING_COLOR: [number, number, number] = [245, 158, 11];
 const DANGER_COLOR: [number, number, number] = [229, 62, 62];
 
 export async function exportProfessionalPdf(options: PdfExportOptions): Promise<void> {
-  const { projectName, tasks, milestones, chartImageDataUrl } = options;
+  const { projectName, tasks, milestones, chartImageDataUrl, orientation = 'portrait' } = options;
   
   const pdf = new jsPDF({
-    orientation: 'portrait',
+    orientation,
     unit: 'mm',
     format: 'a4',
   });
