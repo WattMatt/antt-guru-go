@@ -67,10 +67,21 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
       }
       
       // Check if it's a day number (1-31) - collect all for now
+      // Handle both numeric and string representations
+      let dayValue: number | null = null;
       if (typeof value === 'number' && value >= 1 && value <= 31) {
+        dayValue = value;
+      } else if (typeof value === 'string') {
+        const parsed = parseInt(value.trim(), 10);
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) {
+          dayValue = parsed;
+        }
+      }
+      
+      if (dayValue !== null) {
         if (dayRowIndex === -1 || dayRowIndex === r) {
           dayRowIndex = r;
-          dayColumns.push({ col: c, day: value });
+          dayColumns.push({ col: c, day: dayValue });
         }
       }
     }
