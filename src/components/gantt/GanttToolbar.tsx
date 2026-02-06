@@ -44,6 +44,7 @@ interface GanttToolbarProps {
   onExportWord: () => void;
   onExportCalendar: () => void;
   onImportProgram?: () => void;
+  onClearAllTasks?: () => void;
   onPrint: () => void;
   statusFilter: string;
   onStatusFilterChange: (status: string) => void;
@@ -106,6 +107,7 @@ export function GanttToolbar({
   onExportWord,
   onExportCalendar,
   onImportProgram,
+  onClearAllTasks,
   onPrint,
   statusFilter,
   onStatusFilterChange,
@@ -1075,6 +1077,18 @@ export function GanttToolbar({
                         <DropdownMenuItem onClick={onImportProgram}>
                           <Upload className="h-4 w-4 mr-2" />
                           Import from Excel
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {onClearAllTasks && taskCount > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={onClearAllTasks}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Clear All Tasks ({taskCount})
                         </DropdownMenuItem>
                       </>
                     )}

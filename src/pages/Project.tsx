@@ -35,7 +35,7 @@ export default function Project() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { projects } = useProjects();
-  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency, bulkUpdateTasks, bulkDeleteTasks, reorderTasks, duplicateTask } = useTasks(projectId);
+  const { tasks, dependencies, createTask, updateTask, deleteTask, toggleTaskStatus, createDependency, updateDependency, deleteDependency, bulkUpdateTasks, bulkDeleteTasks, clearAllTasks, reorderTasks, duplicateTask } = useTasks(projectId);
   
   // Milestones
   const { milestones, createMilestone, updateMilestone, deleteMilestone } = useMilestones(projectId);
@@ -408,6 +408,21 @@ export default function Project() {
       toast.error('Failed to clear dependencies');
     }
   }, [dependencies, deleteDependency]);
+
+  // Clear all tasks handler
+  const handleClearAllTasks = useCallback(async () => {
+    if (tasks.length === 0) return;
+    
+    const confirmClear = window.confirm(`Are you sure you want to delete all ${tasks.length} tasks? This cannot be undone.`);
+    if (!confirmClear) return;
+    
+    try {
+      await clearAllTasks.mutateAsync();
+      toast.success(`Cleared all ${tasks.length} tasks`);
+    } catch (error) {
+      toast.error('Failed to clear tasks');
+    }
+  }, [tasks.length, clearAllTasks]);
 
   // Task selection handlers
   const handleTaskSelect = useCallback((taskId: string, selected: boolean) => {
@@ -910,6 +925,7 @@ export default function Project() {
                 onDeleteBaseline={handleDeleteBaseline}
                 taskCount={tasks.length}
                 onImportProgram={() => setIsImportDialogOpen(true)}
+                onClearAllTasks={handleClearAllTasks}
               />
             </div>
 
