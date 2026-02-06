@@ -288,13 +288,11 @@ export async function exportProfessionalPdf(options: PdfExportOptions): Promise<
 
   yPos += 10;
 
-  // === GANTT CHART IMAGE (if provided) ===
+  // === GANTT CHART IMAGE (if provided) - Always on its own page ===
   if (chartImageDataUrl) {
-    // Check if we need a new page
-    if (yPos > pageHeight - 80) {
-      pdf.addPage();
-      yPos = margin;
-    }
+    // Always add a new page for the Gantt chart
+    pdf.addPage();
+    yPos = margin;
 
     pdf.setTextColor(...DARK_TEXT);
     pdf.setFontSize(14);
@@ -302,28 +300,43 @@ export async function exportProfessionalPdf(options: PdfExportOptions): Promise<
     pdf.text('Gantt Chart', margin, yPos);
     yPos += 8;
 
-    // Calculate image dimensions to fit
+    // Calculate image dimensions to fit the full page
     const img = new Image();
     img.src = chartImageDataUrl;
     
     await new Promise<void>((resolve) => {
       img.onload = () => {
         const imgAspect = img.width / img.height;
-        let imgWidth = contentWidth;
-        let imgHeight = imgWidth / imgAspect;
-
-        // If too tall, constrain by height
-        const maxHeight = pageHeight - yPos - 30;
-        if (imgHeight > maxHeight) {
-          imgHeight = maxHeight;
+        
+        // Use full available space on the dedicated page
+        const availableWidth = contentWidth;
+        const availableHeight = pageHeight - yPos - 25; // Leave room for footer
+        
+        let imgWidth: number;
+        let imgHeight: number;
+        
+        // Scale to fit while maintaining aspect ratio
+        const widthRatio = availableWidth / img.width;
+        const heightRatio = availableHeight / img.height;
+        
+        if (widthRatio < heightRatio) {
+          // Width is the limiting factor
+          imgWidth = availableWidth;
+          imgHeight = imgWidth / imgAspect;
+        } else {
+          // Height is the limiting factor
+          imgHeight = availableHeight;
           imgWidth = imgHeight * imgAspect;
         }
+        
+        // Center horizontally if narrower than content width
+        const xOffset = margin + (contentWidth - imgWidth) / 2;
 
         // Add border
         pdf.setDrawColor(200, 200, 200);
-        pdf.rect(margin, yPos, imgWidth, imgHeight);
+        pdf.rect(xOffset, yPos, imgWidth, imgHeight);
         
-        pdf.addImage(chartImageDataUrl, 'PNG', margin, yPos, imgWidth, imgHeight);
+        pdf.addImage(chartImageDataUrl, 'PNG', xOffset, yPos, imgWidth, imgHeight);
         resolve();
       };
       img.onerror = () => resolve();
