@@ -2,7 +2,7 @@ import { useCallback, RefObject } from 'react';
 import { toPng, toJpeg, toSvg } from 'html-to-image';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { exportProfessionalPdf } from '@/lib/pdfExport';
+import { exportProfessionalPdf, PdfOrientation } from '@/lib/pdfExport';
 import { Task, Milestone } from '@/types/gantt';
 
 type ExportFormat = 'png' | 'jpeg' | 'svg' | 'pdf';
@@ -50,7 +50,7 @@ export function useChartExport({ chartRef, projectName, tasks, milestones }: Use
     }
   }, [chartRef, getFileName]);
 
-  const exportAsPdf = useCallback(async () => {
+  const exportAsPdf = useCallback(async (orientation: PdfOrientation = 'portrait') => {
     try {
       toast.loading('Generating PDF report...', { id: 'export' });
 
@@ -74,6 +74,7 @@ export function useChartExport({ chartRef, projectName, tasks, milestones }: Use
         tasks,
         milestones,
         chartImageDataUrl,
+        orientation,
       });
 
       toast.success('PDF report downloaded!', { id: 'export' });
@@ -82,6 +83,9 @@ export function useChartExport({ chartRef, projectName, tasks, milestones }: Use
       toast.error('Failed to export PDF', { id: 'export' });
     }
   }, [chartRef, projectName, tasks, milestones]);
+
+  const exportAsPdfPortrait = useCallback(() => exportAsPdf('portrait'), [exportAsPdf]);
+  const exportAsPdfLandscape = useCallback(() => exportAsPdf('landscape'), [exportAsPdf]);
 
   const exportChart = useCallback(async (format: ExportFormat) => {
     if (format === 'pdf') {
@@ -97,5 +101,7 @@ export function useChartExport({ chartRef, projectName, tasks, milestones }: Use
     exportAsJpeg: () => exportAsImage('jpeg'),
     exportAsSvg: () => exportAsImage('svg'),
     exportAsPdf,
+    exportAsPdfPortrait,
+    exportAsPdfLandscape,
   };
 }

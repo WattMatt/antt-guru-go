@@ -37,7 +37,8 @@ interface GanttToolbarProps {
   onAddTask: () => void;
   onAddMilestone?: () => void;
   milestoneCount?: number;
-  onExportPdf: () => void;
+  onExportPdfPortrait: () => void;
+  onExportPdfLandscape: () => void;
   onExportPng: () => void;
   onExportJpeg: () => void;
   onExportExcel: () => void;
@@ -100,7 +101,8 @@ export function GanttToolbar({
   onAddTask,
   onAddMilestone,
   milestoneCount = 0,
-  onExportPdf,
+  onExportPdfPortrait,
+  onExportPdfLandscape,
   onExportPng,
   onExportJpeg,
   onExportExcel,
@@ -1050,9 +1052,13 @@ export function GanttToolbar({
                       <Image className="h-4 w-4 mr-2" />
                       Export as JPEG
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onExportPdf}>
+                    <DropdownMenuItem onClick={onExportPdfPortrait}>
                       <File className="h-4 w-4 mr-2" />
-                      Export as PDF
+                      Export as PDF (Portrait)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onExportPdfLandscape}>
+                      <File className="h-4 w-4 mr-2" />
+                      Export as PDF (Landscape)
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={onExportExcel}>
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
