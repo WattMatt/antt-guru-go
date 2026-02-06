@@ -107,22 +107,29 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
   // Look for patterns like "Feb-26", "Mar-26", "Apr-26" in various formats
   const monthHeaders: { col: number; month: string; year: number }[] = [];
   
-  // Debug: Log all cells in the first few rows to understand the structure
+  // Debug: Log cells containing month-like patterns to understand the structure
   console.log('[Import] Scanning rows 0 to', dayRowIndex - 1, 'for month headers');
   
+  // Scan ALL columns for month headers (they're often far right in the calendar area)
   for (let r = 0; r < dayRowIndex; r++) {
-    const rowCells: { col: number; value: unknown; type: string; formatted?: string }[] = [];
+    const monthCells: { col: number; value: unknown; formatted?: string }[] = [];
     
-    for (let c = 0; c <= Math.min(range.e.c, 20); c++) {
+    for (let c = 0; c <= range.e.c; c++) {
       const cellAddress = XLSX.utils.encode_cell({ r, c });
       const cell = sheet[cellAddress];
       if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
-        rowCells.push({ col: c, value: cell.v, type: cell.t, formatted: cell.w });
+        const formatted = cell.w || '';
+        const val = String(cell.v);
+        // Check if this looks like a month header
+        if (/[A-Za-z]{3}-\d{2}/.test(formatted) || /[A-Za-z]{3}-\d{2}/.test(val) ||
+            /Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Jan/i.test(val)) {
+          monthCells.push({ col: c, value: cell.v, formatted });
+        }
       }
     }
     
-    if (rowCells.length > 0) {
-      console.log(`[Import] Row ${r} sample cells:`, rowCells.slice(0, 8));
+    if (monthCells.length > 0) {
+      console.log(`[Import] Row ${r} month-like cells:`, monthCells);
     }
   }
   
