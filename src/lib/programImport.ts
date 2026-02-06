@@ -44,8 +44,48 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
   
   console.log('[Import] Sheet range:', range);
   
-  // Step 1: Find the row that contains consecutive day numbers (the calendar day row)
-  // This row will have values like: 2, 3, 4, 5, 6, 7, 8, ... (consecutive days)
+  // Based on the known format:
+  // - Row with "ACTION", "QTY", "UNIT", "DUR", "START", "STOP", then month headers (Feb-26, Mar-26, Apr-26)
+  // - Row with week labels (WEEK 1, WEEK 2, etc.)
+  // - Row with day numbers (2, 3, 4, 5, 6, 7, 8, ... for Feb, then 1, 2, 3... for Mar, etc.)
+  
+  // Step 1: Find ALL month headers (Feb-26, Mar-26, Apr-26) across all rows
+  const monthHeaders: { col: number; month: number; year: number }[] = [];
+  
+  for (let r = 0; r <= Math.min(15, range.e.r); r++) {
+    for (let c = 0; c <= range.e.c; c++) {
+      const cellAddress = XLSX.utils.encode_cell({ r, c });
+      const cell = sheet[cellAddress];
+      if (!cell) continue;
+      
+      const formatted = cell.w || '';
+      const value = cell.v?.toString() || '';
+      
+      // Try to match "Feb-26", "Mar-26", "Apr-26" patterns
+      let match = formatted.match(/^([A-Za-z]{3})-(\d{2})$/);
+      if (!match) {
+        match = value.match(/^([A-Za-z]{3})-(\d{2})$/);
+      }
+      
+      if (match) {
+        const monthIndex = getMonthIndex(match[1]);
+        if (monthIndex !== -1) {
+          monthHeaders.push({
+            col: c,
+            month: monthIndex,
+            year: 2000 + parseInt(match[2])
+          });
+          console.log(`[Import] Found month header: ${match[1]}-${match[2]} at row ${r}, col ${c}`);
+        }
+      }
+    }
+  }
+  
+  // Sort by column
+  monthHeaders.sort((a, b) => a.col - b.col);
+  console.log('[Import] Month headers found:', monthHeaders.length, monthHeaders);
+  
+  // Step 2: Find the row with consecutive day numbers (the calendar day row)
   let dayRowIndex = -1;
   let dayColumns: { col: number; day: number }[] = [];
   
@@ -74,10 +114,8 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
       }
     }
     
-    // Check if this row has many day values (at least 20) with some consecutive patterns
-    // The calendar row typically has 70+ day cells (Feb 27 days + Mar 31 days + Apr 18 days)
+    // Check if this row has many day values with consecutive patterns
     if (rowDays.length >= 20) {
-      // Check for consecutive day patterns
       let consecutiveCount = 0;
       for (let i = 1; i < Math.min(10, rowDays.length); i++) {
         if (rowDays[i].day === rowDays[i-1].day + 1) {
@@ -85,11 +123,11 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
         }
       }
       
-      // If we have at least 5 consecutive days, this is likely the calendar row
       if (consecutiveCount >= 5) {
         dayRowIndex = r;
         dayColumns = rowDays;
         console.log(`[Import] Found calendar day row at index ${r} with ${rowDays.length} day cells`);
+        console.log(`[Import] First day column: col ${rowDays[0].col}, day ${rowDays[0].day}`);
         break;
       }
     }
@@ -103,188 +141,53 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
   // Sort day columns by column index
   dayColumns.sort((a, b) => a.col - b.col);
   
-  // Step 2: Find month headers in rows ABOVE the day row
-  // Look for patterns like "Feb-26", "Mar-26", "Apr-26" in various formats
-  const monthHeaders: { col: number; month: string; year: number }[] = [];
+  // Step 3: Assign dates to each day column
+  // Key insight: We know the month headers and their columns, and we have day numbers
+  // When a day number resets (e.g., 28 → 1 or 31 → 1), we move to the next month
   
-  // Debug: Log cells containing month-like patterns to understand the structure
-  console.log('[Import] Scanning rows 0 to', dayRowIndex - 1, 'for month headers');
-  
-  // Scan ALL columns for month headers (they're often far right in the calendar area)
-  for (let r = 0; r < dayRowIndex; r++) {
-    const monthCells: { col: number; value: unknown; formatted?: string }[] = [];
-    
-    for (let c = 0; c <= range.e.c; c++) {
-      const cellAddress = XLSX.utils.encode_cell({ r, c });
-      const cell = sheet[cellAddress];
-      if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
-        const formatted = cell.w || '';
-        const val = String(cell.v);
-        // Check if this looks like a month header
-        if (/[A-Za-z]{3}-\d{2}/.test(formatted) || /[A-Za-z]{3}-\d{2}/.test(val) ||
-            /Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Jan/i.test(val)) {
-          monthCells.push({ col: c, value: cell.v, formatted });
-        }
-      }
-    }
-    
-    if (monthCells.length > 0) {
-      console.log(`[Import] Row ${r} month-like cells:`, monthCells);
-    }
-  }
-  
-  for (let r = 0; r < dayRowIndex; r++) {
-    for (let c = 0; c <= range.e.c; c++) {
-      const cellAddress = XLSX.utils.encode_cell({ r, c });
-      const cell = sheet[cellAddress];
-      if (!cell) continue;
-      
-      const value = cell.v;
-      const formatted = cell.w; // Formatted value (what you see in Excel)
-      
-      // Method 1: Check formatted value first (e.g., "Feb-26")
-      if (formatted && typeof formatted === 'string') {
-        const match = formatted.match(/^([A-Za-z]{3})-(\d{2})$/);
-        if (match) {
-          const monthIndex = getMonthIndex(match[1]);
-          if (monthIndex !== -1) {
-            monthHeaders.push({
-              col: c,
-              month: match[1],
-              year: 2000 + parseInt(match[2])
-            });
-            console.log(`[Import] Found month header (formatted): ${formatted} at column ${c}, row ${r}`);
-            continue;
-          }
-        }
-      }
-      
-      // Method 2: Check if it's a date stored as Excel serial number
-      if (cell.t === 'd' || (cell.t === 'n' && typeof value === 'number' && value > 40000 && value < 50000)) {
-        const date = cell.t === 'd' ? (value as Date) : excelDateToJS(value as number);
-        const month = date.getMonth();
-        const year = date.getFullYear();
-        const monthAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month];
-        
-        // Only add if it looks like a month-year header (first day of month or reasonable date)
-        if (date.getDate() === 1 || c > 5) { // Column > 5 suggests calendar area
-          monthHeaders.push({
-            col: c,
-            month: monthAbbr,
-            year: year
-          });
-          console.log(`[Import] Found month header (date serial): ${monthAbbr}-${year.toString().slice(-2)} at column ${c}, row ${r}`);
-          continue;
-        }
-      }
-      
-      // Method 3: Check string value with flexible patterns
-      if (typeof value === 'string') {
-        // Pattern: "Feb-26", "FEB-26", "feb-26"
-        let match = value.match(/^([A-Za-z]{3})-(\d{2})$/);
-        if (match) {
-          const monthIndex = getMonthIndex(match[1]);
-          if (monthIndex !== -1) {
-            monthHeaders.push({
-              col: c,
-              month: match[1],
-              year: 2000 + parseInt(match[2])
-            });
-            console.log(`[Import] Found month header (string): ${value} at column ${c}, row ${r}`);
-            continue;
-          }
-        }
-        
-        // Pattern: "February 2026", "Feb 2026", etc.
-        match = value.match(/^([A-Za-z]+)\s*(\d{4})$/);
-        if (match) {
-          const monthIndex = getMonthIndex(match[1].slice(0, 3));
-          if (monthIndex !== -1) {
-            monthHeaders.push({
-              col: c,
-              month: match[1].slice(0, 3),
-              year: parseInt(match[2])
-            });
-            console.log(`[Import] Found month header (long format): ${value} at column ${c}, row ${r}`);
-          }
-        }
-      }
-    }
-  }
-  
-  // Sort month headers by column and deduplicate (keep first occurrence per month-year)
-  monthHeaders.sort((a, b) => a.col - b.col);
-  const seenMonths = new Set<string>();
-  const uniqueMonthHeaders = monthHeaders.filter(h => {
-    const key = `${h.month}-${h.year}`;
-    if (seenMonths.has(key)) return false;
-    seenMonths.add(key);
-    return true;
-  });
-  
-  console.log('[Import] Unique month headers:', uniqueMonthHeaders);
-  console.log('[Import] Found day columns count:', dayColumns.length, 'from row', dayRowIndex);
-  console.log('[Import] First few day columns:', dayColumns.slice(0, 10));
-  console.log('[Import] Last few day columns:', dayColumns.slice(-10));
-  
-  if (uniqueMonthHeaders.length === 0) {
-    console.warn('[Import] Could not find month headers, will use day reset detection only');
-    // We can still try to infer months from day resets if we have a known start
-  }
-  
-  // Step 3: Assign each day column to a month
-  // Key insight: Days reset when month changes (e.g., Feb 28 → Mar 1, or Mar 31 → Apr 1)
-  let currentMonthIdx = 0;
+  let currentMonthIndex = 0;
   let prevDay = 0;
-  let monthTransitions = 0;
   
-  for (const dayCol of dayColumns) {
-    const { col, day } = dayCol;
-    
-    // Detect month transition: day number decreased significantly (reset)
-    if (prevDay > 0 && day < prevDay) {
-      // Only count as transition if previous day was reasonably high (> 20)
-      // and current day is reasonably low (< 10)
-      if (prevDay >= 20 && day <= 10) {
-        monthTransitions++;
-        console.log(`[Import] Month transition detected at col ${col}: day ${prevDay} → ${day} (transition #${monthTransitions})`);
-        
-        // Move to next month if available
-        if (currentMonthIdx < uniqueMonthHeaders.length - 1) {
-          currentMonthIdx++;
+  // If we have month headers, use the first one as starting point
+  // Otherwise, assume Feb 2026
+  let currentMonth = monthHeaders.length > 0 ? monthHeaders[0].month : 1; // Feb = 1
+  let currentYear = monthHeaders.length > 0 ? monthHeaders[0].year : 2026;
+  
+  for (const { col, day } of dayColumns) {
+    // Detect month transition: day number resets (goes from high to low)
+    if (prevDay > 0 && day < prevDay && prevDay >= 20 && day <= 10) {
+      currentMonthIndex++;
+      
+      // Update current month from headers if available
+      if (monthHeaders.length > currentMonthIndex) {
+        currentMonth = monthHeaders[currentMonthIndex].month;
+        currentYear = monthHeaders[currentMonthIndex].year;
+        console.log(`[Import] Month transition at col ${col}: day ${prevDay} → ${day}, now ${currentMonth + 1}/${currentYear}`);
+      } else {
+        // Increment month manually
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
         }
+        console.log(`[Import] Month transition (inferred) at col ${col}: now ${currentMonth + 1}/${currentYear}`);
       }
     }
     
-    // Determine the month and year for this day
-    let monthIndex: number;
-    let year: number;
-    
-    if (uniqueMonthHeaders.length > 0) {
-      const currentMonth = uniqueMonthHeaders[Math.min(currentMonthIdx, uniqueMonthHeaders.length - 1)];
-      monthIndex = getMonthIndex(currentMonth.month);
-      year = currentMonth.year;
-    } else {
-      // Fallback: assume starting February 2026 and increment on transitions
-      monthIndex = 1 + monthTransitions; // Feb = 1, Mar = 2, Apr = 3
-      year = 2026;
-    }
-    
-    if (monthIndex !== -1) {
-      const date = new Date(year, monthIndex, day);
-      dateMap[col] = date;
-    }
+    // Create the date for this column
+    const date = new Date(currentYear, currentMonth, day);
+    dateMap[col] = date;
     
     prevDay = day;
   }
   
-  // Log the date range we found
+  // Log the date range
   const dateValues = Object.values(dateMap);
   if (dateValues.length > 0) {
     const minDate = new Date(Math.min(...dateValues.map(d => d.getTime())));
     const maxDate = new Date(Math.max(...dateValues.map(d => d.getTime())));
     console.log('[Import] Date map range:', minDate.toISOString().split('T')[0], 'to', maxDate.toISOString().split('T')[0]);
-    console.log('[Import] Total month transitions detected:', monthTransitions);
+    console.log('[Import] Total columns mapped:', Object.keys(dateMap).length);
   }
   
   return dateMap;
