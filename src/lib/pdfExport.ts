@@ -298,11 +298,19 @@ export async function exportProfessionalPdf(options: PdfExportOptions): Promise<
     const landscapeContentWidth = landscapePageWidth - (margin * 2);
     yPos = margin;
 
-    pdf.setTextColor(...DARK_TEXT);
-    pdf.setFontSize(14);
+    // Project name header
+    pdf.setTextColor(...PRIMARY_COLOR);
+    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
+    pdf.text(projectName, margin, yPos);
+    yPos += 6;
+
+    // Gantt Chart subtitle
+    pdf.setTextColor(...DARK_TEXT);
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
     pdf.text('Gantt Chart', margin, yPos);
-    yPos += 8;
+    yPos += 10;
 
     // Calculate image dimensions to fit the full landscape page
     const img = new Image();
