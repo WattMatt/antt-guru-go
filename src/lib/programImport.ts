@@ -37,15 +37,72 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
   // Get the range of the sheet
   const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
   
-  // Find month headers and their column positions
-  const monthHeaders: { col: number; month: string; year: number }[] = [];
+  console.log('[Import] Sheet range:', range);
   
-  // Find the day number row
+  // Step 1: Find the row that contains consecutive day numbers (the calendar day row)
+  // This row will have values like: 2, 3, 4, 5, 6, 7, 8, ... (consecutive days)
   let dayRowIndex = -1;
   let dayColumns: { col: number; day: number }[] = [];
   
-  // Scan first 20 rows to find headers
-  for (let r = 0; r <= Math.min(20, range.e.r); r++) {
+  for (let r = 0; r <= Math.min(25, range.e.r); r++) {
+    const rowDays: { col: number; day: number }[] = [];
+    
+    for (let c = 0; c <= range.e.c; c++) {
+      const cellAddress = XLSX.utils.encode_cell({ r, c });
+      const cell = sheet[cellAddress];
+      if (!cell) continue;
+      
+      const value = cell.v;
+      let dayValue: number | null = null;
+      
+      if (typeof value === 'number' && value >= 1 && value <= 31) {
+        dayValue = value;
+      } else if (typeof value === 'string') {
+        const parsed = parseInt(value.trim(), 10);
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) {
+          dayValue = parsed;
+        }
+      }
+      
+      if (dayValue !== null) {
+        rowDays.push({ col: c, day: dayValue });
+      }
+    }
+    
+    // Check if this row has many day values (at least 20) with some consecutive patterns
+    // The calendar row typically has 70+ day cells (Feb 27 days + Mar 31 days + Apr 18 days)
+    if (rowDays.length >= 20) {
+      // Check for consecutive day patterns
+      let consecutiveCount = 0;
+      for (let i = 1; i < Math.min(10, rowDays.length); i++) {
+        if (rowDays[i].day === rowDays[i-1].day + 1) {
+          consecutiveCount++;
+        }
+      }
+      
+      // If we have at least 5 consecutive days, this is likely the calendar row
+      if (consecutiveCount >= 5) {
+        dayRowIndex = r;
+        dayColumns = rowDays;
+        console.log(`[Import] Found calendar day row at index ${r} with ${rowDays.length} day cells`);
+        break;
+      }
+    }
+  }
+  
+  if (dayRowIndex === -1 || dayColumns.length === 0) {
+    console.warn('[Import] Could not find calendar day row');
+    return dateMap;
+  }
+  
+  // Sort day columns by column index
+  dayColumns.sort((a, b) => a.col - b.col);
+  
+  // Step 2: Find month headers in rows ABOVE the day row
+  // Look for patterns like "Feb-26", "Mar-26", "Apr-26"
+  const monthHeaders: { col: number; month: string; year: number }[] = [];
+  
+  for (let r = 0; r < dayRowIndex; r++) {
     for (let c = 0; c <= range.e.c; c++) {
       const cellAddress = XLSX.utils.encode_cell({ r, c });
       const cell = sheet[cellAddress];
@@ -63,25 +120,7 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
             month: monthAbbr,
             year: 2000 + parseInt(yearSuffix)
           });
-        }
-      }
-      
-      // Check if it's a day number (1-31) - collect all for now
-      // Handle both numeric and string representations
-      let dayValue: number | null = null;
-      if (typeof value === 'number' && value >= 1 && value <= 31) {
-        dayValue = value;
-      } else if (typeof value === 'string') {
-        const parsed = parseInt(value.trim(), 10);
-        if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) {
-          dayValue = parsed;
-        }
-      }
-      
-      if (dayValue !== null) {
-        if (dayRowIndex === -1 || dayRowIndex === r) {
-          dayRowIndex = r;
-          dayColumns.push({ col: c, day: dayValue });
+          console.log(`[Import] Found month header: ${value} at column ${c}`);
         }
       }
     }
@@ -90,31 +129,26 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
   // Sort month headers by column
   monthHeaders.sort((a, b) => a.col - b.col);
   
-  // Sort day columns by column index
-  dayColumns.sort((a, b) => a.col - b.col);
-  
   console.log('[Import] Found month headers:', monthHeaders);
   console.log('[Import] Found day columns count:', dayColumns.length, 'from row', dayRowIndex);
   console.log('[Import] First few day columns:', dayColumns.slice(0, 10));
   console.log('[Import] Last few day columns:', dayColumns.slice(-10));
   
-  if (monthHeaders.length === 0 || dayColumns.length === 0) {
-    console.warn('Could not find month headers or day columns');
-    return dateMap;
+  if (monthHeaders.length === 0) {
+    console.warn('[Import] Could not find month headers, will use day reset detection only');
+    // We can still try to infer months from day resets if we have a known start
   }
   
-  // Now assign each day column to a month
+  // Step 3: Assign each day column to a month
   // Key insight: Days reset when month changes (e.g., Feb 28 → Mar 1, or Mar 31 → Apr 1)
-  // We track these resets to correctly assign months to each day column
   let currentMonthIdx = 0;
   let prevDay = 0;
-  let monthTransitions = 0; // Track how many times we've seen day resets
+  let monthTransitions = 0;
   
   for (const dayCol of dayColumns) {
     const { col, day } = dayCol;
     
     // Detect month transition: day number decreased significantly (reset)
-    // This happens when going from end of month (28, 29, 30, 31) to start of next month (1, 2, 3)
     if (prevDay > 0 && day < prevDay) {
       // Only count as transition if previous day was reasonably high (> 20)
       // and current day is reasonably low (< 10)
@@ -129,11 +163,22 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
       }
     }
     
-    const currentMonth = monthHeaders[Math.min(currentMonthIdx, monthHeaders.length - 1)];
-    const monthIndex = getMonthIndex(currentMonth.month);
+    // Determine the month and year for this day
+    let monthIndex: number;
+    let year: number;
+    
+    if (monthHeaders.length > 0) {
+      const currentMonth = monthHeaders[Math.min(currentMonthIdx, monthHeaders.length - 1)];
+      monthIndex = getMonthIndex(currentMonth.month);
+      year = currentMonth.year;
+    } else {
+      // Fallback: assume starting February 2026 and increment on transitions
+      monthIndex = 1 + monthTransitions; // Feb = 1, Mar = 2, Apr = 3
+      year = 2026;
+    }
     
     if (monthIndex !== -1) {
-      const date = new Date(currentMonth.year, monthIndex, day);
+      const date = new Date(year, monthIndex, day);
       dateMap[col] = date;
     }
     
