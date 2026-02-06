@@ -88,7 +88,9 @@ export default function Project() {
   // Chart export functionality
   const { exportAsPng, exportAsJpeg, exportAsPdf } = useChartExport({
     chartRef,
-    projectName: project?.name ?? 'gantt-chart'
+    projectName: project?.name ?? 'gantt-chart',
+    tasks,
+    milestones
   });
 
   useEffect(() => {
