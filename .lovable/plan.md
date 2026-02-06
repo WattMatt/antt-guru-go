@@ -1,164 +1,147 @@
 
 
-# Task Color Presets and Themes
+# Import Construction Program from Excel
 
 ## Overview
 
-This plan adds the ability for users to assign colors to individual tasks using preset color palettes, plus optional project-level theme support. This will make Gantt charts more visually organized and help users categorize tasks at a glance.
+This plan adds the ability to import construction programs from Excel files (like the attached `Construction_program_PBM.xlsx`) and visualize them on the Gantt chart.
+
+## Understanding the Excel Format
+
+The uploaded file is a **construction schedule** with the following structure:
+
+| Column | Content |
+|--------|---------|
+| A | Row number (1, 1.1, 1.2, etc.) |
+| B | Task/Section name |
+| C | Quantity |
+| D | Unit |
+| E | Duration (DAYS) |
+| F-G | Start/Stop dates |
+| H onwards | Weekly calendar grid showing work days |
+
+**Key sections identified:**
+1. **CONTRACTUAL** - Contract signing
+2. **SITE ESTABLISHMENT** - Site setup, storage, setting out works
+3. **CONSTRUCTION** - Walkways, cable trays, panels, wiring, inverters
+4. **TEST AND COMMISSION** - Testing installation and monitoring
+5. **HAND OVER** - PC handover
+
+The calendar grid uses "1" markers to indicate working days, with headers showing week numbers and dates (Feb-26 through Apr-26).
 
 ---
 
-## Current State
+## Implementation Approach
 
-- Tasks currently get colors based on status only (green for completed, blue for in-progress, grey for not started, red for overdue)
-- No `color` field exists on the `tasks` database table
-- The Task interface in `src/types/gantt.ts` has no color property
-- The `TaskForm` component handles task creation/editing but has no color picker
+### 1. Add Excel Parsing Library
 
----
+Install the `xlsx` (SheetJS) library to parse Excel files client-side.
 
-## Implementation Scope
+### 2. Create Import Parser Utility
 
-### Part 1: Task Color Presets (Core Feature)
+A new utility file will handle parsing construction program Excel files:
 
-Allow users to assign one of several preset colors to each task.
+- Extract project metadata (contract name, duration, completion date)
+- Parse task rows with hierarchical numbering (1, 1.1, 1.2, etc.)
+- Calculate start/end dates from the calendar grid markers
+- Handle section headers vs actual tasks
+- Map duration values to task properties
 
-#### Database Changes
-Add a `color` column to the `tasks` table:
-- Type: `text` (nullable)
-- Default: `null` (uses status-based coloring when not set)
-- Values: Store color preset keys like `'blue'`, `'green'`, `'purple'`, `'orange'`, `'pink'`, `'teal'`, `'yellow'`, `'red'`
+### 3. Build Import Dialog Component
 
-#### Color Palette Definition
-Create a shared color constants file with preset definitions:
+A dialog with:
 
-```text
-Preset Colors (8-10 options):
-+----------+-----------------+------------------+
-| Key      | Bar Color       | Foreground       |
-+----------+-----------------+------------------+
-| blue     | bg-blue-500     | text-white       |
-| green    | bg-green-500    | text-white       |
-| purple   | bg-purple-500   | text-white       |
-| orange   | bg-orange-500   | text-white       |
-| pink     | bg-pink-500     | text-white       |
-| teal     | bg-teal-500     | text-white       |
-| yellow   | bg-yellow-500   | text-black       |
-| red      | bg-red-500      | text-white       |
-| indigo   | bg-indigo-500   | text-white       |
-| gray     | bg-gray-500     | text-white       |
-+----------+-----------------+------------------+
-```
+- File drop zone for Excel upload
+- Preview of parsed tasks before import
+- Mapping options (column assignments if format varies)
+- Conflict handling (merge vs replace existing tasks)
+- Progress indicator for large files
 
-#### UI Changes
+### 4. Integrate into GanttToolbar
 
-1. **TaskForm Component** - Add a color picker section:
-   - Display as a row of clickable color swatches
-   - Include a "Default" option that clears the color (uses status-based)
-   - Show a check mark or ring on the selected color
+Add an "Import" button in the toolbar's export dropdown menu, providing symmetry with existing export options.
 
-2. **GanttChart Component** - Update `getStatusColor` function:
-   - If `task.color` is set, use the preset color
-   - Otherwise, fall back to existing status-based logic
+### 5. Wire Up to Project Page
 
-3. **ProgressPanel** - Update task list to show color indicators
+Connect the import flow to create tasks via the existing `useTasks` hook mutations.
 
 ---
 
-### Part 2: Project Themes (Optional Enhancement)
+## File Changes
 
-Allow users to select a theme that changes the overall color palette for task bars.
-
-#### Approach A: Project-Level Default Color Scheme
-- Add `theme` column to `projects` table
-- Themes define which status maps to which color
-- Example themes: "Classic", "Ocean", "Forest", "Sunset"
-
-#### Approach B: CSS Variable Overrides
-- Store theme preference in project settings
-- Apply CSS class that overrides task bar colors globally
+| File | Action | Description |
+|------|--------|-------------|
+| `package.json` | Modify | Add `xlsx` dependency |
+| `src/lib/programImport.ts` | Create | Excel parsing and date calculation logic |
+| `src/components/gantt/ImportProgramDialog.tsx` | Create | File upload UI with preview table |
+| `src/components/gantt/GanttToolbar.tsx` | Modify | Add Import menu item |
+| `src/pages/Project.tsx` | Modify | Add import handler and dialog state |
 
 ---
 
 ## Technical Details
 
-### Files to Create
+### Date Calculation Algorithm
 
-| File | Purpose |
-|------|---------|
-| `src/lib/taskColors.ts` | Color preset definitions and helper functions |
+The Excel file uses a calendar grid where:
+- Row 14 contains day numbers (2, 3, 4, 5... for Feb-26)
+- Row 13 shows week labels (WEEK 1, WEEK 2, etc.)
+- Rows 12 shows months (Feb-26, Mar-26, Apr-26)
+- Task rows have "1" in columns where work occurs
 
-### Files to Modify
+The parser will:
+1. Build a column-to-date mapping from the header rows
+2. For each task row, find first and last "1" markers
+3. Map those columns to actual dates
 
-| File | Changes |
-|------|---------|
-| `src/types/gantt.ts` | Add `color?: string` to Task interface |
-| `src/components/gantt/TaskForm.tsx` | Add color picker UI |
-| `src/components/gantt/GanttChart.tsx` | Update `getStatusColor` to use custom colors |
-| `src/components/gantt/ProgressPanel.tsx` | Show color indicators on task list |
+### Task Hierarchy
 
-### Database Migration
+Rows like "1", "2", "3" are section headers (CONTRACTUAL, SITE ESTABLISHMENT, etc.)
+Rows like "1.1", "1.2", "3.1" are actual tasks
 
-```sql
-ALTER TABLE public.tasks 
-ADD COLUMN color text DEFAULT NULL;
+The parser will:
+- Skip or mark section headers (optionally import as milestones)
+- Import numbered sub-items as tasks
+- Preserve the numbering in task names for context
+
+### Parsed Task Structure
+
+```typescript
+interface ParsedProgramTask {
+  rowNumber: string;      // "3.1", "3.2", etc.
+  name: string;           // "Install walkways per zone @ 67m/day"
+  quantity?: number;      // 1210
+  unit?: string;          // "m"
+  duration?: number;      // 18 (days)
+  startDate: string;      // "2026-02-10" (ISO format)
+  endDate: string;        // "2026-03-10" (ISO format)
+  isSection: boolean;     // true for main headers
+}
 ```
 
 ---
 
-## Color Picker UI Design
+## User Flow
 
-The color picker in TaskForm will appear as:
-
-```text
-Color
-+-----------------------------------------------+
-| [Default] [O] [O] [O] [O] [O] [O] [O] [O]     |
-+-----------------------------------------------+
-Assign a color to visually categorize this task
-```
-
-- Each `[O]` is a colored circle (20x20px)
-- Selected color shows a white checkmark or ring
-- "Default" is a grey circle with a slash or "Auto" label
-- Hover shows tooltip with color name
+1. User clicks "Import" in the Export dropdown menu
+2. Import dialog opens with a file drop zone
+3. User drops or selects an Excel file
+4. Parser extracts tasks and displays preview table showing:
+   - Task name
+   - Calculated start/end dates
+   - Duration
+   - Status (new/will update/conflict)
+5. User reviews and clicks "Import X Tasks"
+6. Tasks are created in the database
+7. Gantt chart refreshes showing imported tasks
 
 ---
 
-## Behavior
+## Edge Cases Handled
 
-1. **New Tasks**: Default to `null` (status-based coloring)
-2. **Existing Tasks**: Continue using status colors until user assigns one
-3. **Overdue Logic**: Custom colors still respect overdue styling (optional: add a warning badge instead of changing color)
-4. **Status Change**: Custom color persists even when status changes
-
----
-
-## Migration Strategy
-
-- The new `color` column is nullable with no default
-- Existing tasks remain unchanged and continue using status-based colors
-- No data migration needed
-
----
-
-## Future Enhancements (Not in This Plan)
-
-- Custom hex color picker (beyond presets)
-- Color-based filtering in the toolbar
-- Color legends/keys
-- Category tags that auto-assign colors
-- Dark mode color variants
-
----
-
-## Summary
-
-This implementation adds a simple but powerful visual organization feature by:
-1. Adding a `color` column to the tasks table
-2. Creating a color presets system with 8-10 predefined options
-3. Adding a color picker to the task form
-4. Updating the Gantt chart to render custom colors
-
-The approach keeps things simple (preset colors only) while leaving room for expansion (custom colors, themes) in the future.
+- **Missing dates**: Tasks without calendar markers get project start date
+- **Section headers**: Converted to grouping info or skipped
+- **Duplicate imports**: Option to skip existing or update
+- **Invalid files**: Clear error messages for non-Excel or wrong format
+- **Large files**: Streaming parse with progress indicator
 
