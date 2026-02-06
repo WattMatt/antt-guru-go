@@ -27,6 +27,9 @@ interface ColumnDateMap {
  * - Row with month/year labels (e.g., "Feb-26", "Mar-26")
  * - Row with week labels (e.g., "WEEK 1", "WEEK 2")
  * - Row with day numbers (e.g., 2, 3, 4, 5...)
+ * 
+ * Key insight: Day numbers reset when the month changes (e.g., 28 → 1 for Feb→Mar)
+ * We need to detect these resets to assign correct months to each day column.
  */
 function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): ColumnDateMap {
   const dateMap: ColumnDateMap = {};
@@ -34,11 +37,14 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
   // Get the range of the sheet
   const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
   
-  // Find the month header row and day number row
-  let monthRow: { [col: number]: string } = {};
-  let dayRow: { [col: number]: number } = {};
+  // Find month headers and their column positions
+  const monthHeaders: { col: number; month: string; year: number }[] = [];
   
-  // Try to find the header rows (usually rows 12-14 in the sample format)
+  // Find the day number row
+  let dayRowIndex = -1;
+  let dayColumns: { col: number; day: number }[] = [];
+  
+  // Scan first 20 rows to find headers
   for (let r = 0; r <= Math.min(20, range.e.r); r++) {
     for (let c = 0; c <= range.e.c; c++) {
       const cellAddress = XLSX.utils.encode_cell({ r, c });
@@ -49,45 +55,67 @@ function buildColumnDateMap(sheet: XLSX.WorkSheet, headerRows: number[]): Column
       
       // Check if it's a month label (e.g., "Feb-26", "Mar-26", "Apr-26")
       if (typeof value === 'string' && /^[A-Za-z]{3}-\d{2}$/.test(value)) {
-        monthRow[c] = value;
+        const [monthAbbr, yearSuffix] = value.split('-');
+        const monthIndex = getMonthIndex(monthAbbr);
+        if (monthIndex !== -1) {
+          monthHeaders.push({
+            col: c,
+            month: monthAbbr,
+            year: 2000 + parseInt(yearSuffix)
+          });
+        }
       }
       
-      // Check if it's a day number (1-31)
+      // Check if it's a day number (1-31) - collect all for now
       if (typeof value === 'number' && value >= 1 && value <= 31) {
-        dayRow[c] = value;
+        if (dayRowIndex === -1 || dayRowIndex === r) {
+          dayRowIndex = r;
+          dayColumns.push({ col: c, day: value });
+        }
       }
     }
   }
   
-  // Build the date map by combining month + day
-  let currentMonth = '';
-  let currentYear = 2026; // Default year, will be overwritten
+  // Sort month headers by column
+  monthHeaders.sort((a, b) => a.col - b.col);
   
-  // Sort column indices for month row
-  const monthCols = Object.keys(monthRow).map(Number).sort((a, b) => a - b);
+  // Sort day columns by column index
+  dayColumns.sort((a, b) => a.col - b.col);
   
-  // For each column with a day number, find the applicable month
-  for (const [colStr, day] of Object.entries(dayRow)) {
-    const col = parseInt(colStr);
+  if (monthHeaders.length === 0 || dayColumns.length === 0) {
+    console.warn('Could not find month headers or day columns');
+    return dateMap;
+  }
+  
+  // Now assign each day column to a month
+  // The key is detecting when day numbers reset (e.g., 28→1 means month change)
+  let currentMonthIdx = 0;
+  let prevDay = 0;
+  
+  for (const dayCol of dayColumns) {
+    const { col, day } = dayCol;
     
-    // Find the month that applies to this column
-    for (let i = monthCols.length - 1; i >= 0; i--) {
-      if (monthCols[i] <= col) {
-        currentMonth = monthRow[monthCols[i]];
-        break;
-      }
+    // Detect month change: day decreased significantly (reset) or we passed a month header
+    if (prevDay > 0 && day < prevDay && (prevDay - day) > 5) {
+      // Day reset detected (e.g., 28 → 1 or 31 → 1)
+      currentMonthIdx = Math.min(currentMonthIdx + 1, monthHeaders.length - 1);
     }
     
-    if (currentMonth) {
-      const [monthAbbr, yearSuffix] = currentMonth.split('-');
-      currentYear = 2000 + parseInt(yearSuffix);
-      const monthIndex = getMonthIndex(monthAbbr);
-      
-      if (monthIndex !== -1) {
-        const date = new Date(currentYear, monthIndex, day);
-        dateMap[col] = date;
-      }
+    // Also check if we passed a new month header column
+    while (currentMonthIdx < monthHeaders.length - 1 && 
+           col >= monthHeaders[currentMonthIdx + 1].col) {
+      currentMonthIdx++;
     }
+    
+    const currentMonth = monthHeaders[currentMonthIdx];
+    const monthIndex = getMonthIndex(currentMonth.month);
+    
+    if (monthIndex !== -1) {
+      const date = new Date(currentMonth.year, monthIndex, day);
+      dateMap[col] = date;
+    }
+    
+    prevDay = day;
   }
   
   return dateMap;
