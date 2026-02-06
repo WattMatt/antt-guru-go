@@ -15,6 +15,11 @@ export interface ParsedProgram {
   tasks: ParsedProgramTask[];
   projectName?: string;
   errors: string[];
+  /** Detected calendar date range from the Excel file */
+  detectedDateRange?: {
+    startDate: string;
+    endDate: string;
+  };
 }
 
 interface ColumnDateMap {
@@ -357,6 +362,7 @@ function excelDateToJS(excelDate: number): Date {
 export async function parseConstructionProgram(file: File): Promise<ParsedProgram> {
   const errors: string[] = [];
   const tasks: ParsedProgramTask[] = [];
+  let detectedDateRange: { startDate: string; endDate: string } | undefined;
   
   try {
     const arrayBuffer = await file.arrayBuffer();
@@ -375,7 +381,21 @@ export async function parseConstructionProgram(file: File): Promise<ParsedProgra
     
     // Build column → date mapping from the calendar header
     const dateMap = buildColumnDateMap(sheet, []);
-    const calendarStartCol = Math.min(...Object.keys(dateMap).map(Number));
+    
+    // Calculate detected date range from the dateMap
+    const dateValues = Object.values(dateMap);
+    if (dateValues.length > 0) {
+      const minDate = new Date(Math.min(...dateValues.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...dateValues.map(d => d.getTime())));
+      detectedDateRange = {
+        startDate: formatDateISO(minDate),
+        endDate: formatDateISO(maxDate)
+      };
+    }
+    
+    const calendarStartCol = Object.keys(dateMap).length > 0 
+      ? Math.min(...Object.keys(dateMap).map(Number))
+      : 7;
     
     // Column indices (0-based) for the sample format
     // A=0 (row number), B=1 (name), C=2 (qty), D=3 (unit), E=4 (duration), F=5 (start), G=6 (end)
@@ -430,7 +450,7 @@ export async function parseConstructionProgram(file: File): Promise<ParsedProgra
       
       // If no explicit dates, try to find from calendar grid
       if (!startDate || !endDate) {
-        const gridDates = findTaskDateRange(sheet, r, calendarStartCol || 7, dateMap);
+        const gridDates = findTaskDateRange(sheet, r, calendarStartCol, dateMap);
         startDate = startDate || gridDates.startDate;
         endDate = endDate || gridDates.endDate;
       }
@@ -469,7 +489,7 @@ export async function parseConstructionProgram(file: File): Promise<ParsedProgra
     errors.push(`Failed to parse file: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
   
-  return { tasks, errors };
+  return { tasks, errors, detectedDateRange };
 }
 
 function formatDateISO(date: Date): string {

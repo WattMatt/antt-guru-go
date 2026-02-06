@@ -8,8 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { parseConstructionProgram, isExcelFile, ParsedProgramTask } from '@/lib/programImport';
-import { format, parseISO } from 'date-fns';
+import { parseConstructionProgram, isExcelFile, ParsedProgramTask, ParsedProgram } from '@/lib/programImport';
+import { format, parseISO, differenceInDays } from 'date-fns';
 
 interface ImportProgramDialogProps {
   open: boolean;
@@ -22,6 +22,7 @@ type ImportState = 'idle' | 'parsing' | 'preview' | 'importing' | 'success' | 'e
 export function ImportProgramDialog({ open, onOpenChange, onImport }: ImportProgramDialogProps) {
   const [state, setState] = useState<ImportState>('idle');
   const [parsedTasks, setParsedTasks] = useState<ParsedProgramTask[]>([]);
+  const [detectedDateRange, setDetectedDateRange] = useState<{ startDate: string; endDate: string } | undefined>();
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
   const [errors, setErrors] = useState<string[]>([]);
   const [importProgress, setImportProgress] = useState(0);
@@ -31,6 +32,7 @@ export function ImportProgramDialog({ open, onOpenChange, onImport }: ImportProg
   const reset = useCallback(() => {
     setState('idle');
     setParsedTasks([]);
+    setDetectedDateRange(undefined);
     setSelectedTasks(new Set());
     setErrors([]);
     setImportProgress(0);
@@ -65,6 +67,7 @@ export function ImportProgramDialog({ open, onOpenChange, onImport }: ImportProg
       }
 
       setParsedTasks(result.tasks);
+      setDetectedDateRange(result.detectedDateRange);
       // Select all non-section tasks by default
       const defaultSelected = new Set<number>();
       result.tasks.forEach((task, index) => {
@@ -221,11 +224,33 @@ export function ImportProgramDialog({ open, onOpenChange, onImport }: ImportProg
         {/* Preview State */}
         {state === 'preview' && (
           <div className="space-y-4">
+            {/* Detected Date Range Banner */}
+            {detectedDateRange && (
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Detected calendar range: </span>
+                    <span className="font-medium text-foreground">
+                      {format(parseISO(detectedDateRange.startDate), 'MMM d, yyyy')}
+                    </span>
+                    <span className="text-muted-foreground"> to </span>
+                    <span className="font-medium text-foreground">
+                      {format(parseISO(detectedDateRange.endDate), 'MMM d, yyyy')}
+                    </span>
+                    <span className="text-muted-foreground ml-2">
+                      ({differenceInDays(parseISO(detectedDateRange.endDate), parseISO(detectedDateRange.startDate)) + 1} days)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {errors.length > 0 && (
-              <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                  <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-destructive">
                     {errors.map((err, i) => <p key={i}>{err}</p>)}
                   </div>
                 </div>
