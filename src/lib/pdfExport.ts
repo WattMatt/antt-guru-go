@@ -288,10 +288,14 @@ export async function exportProfessionalPdf(options: PdfExportOptions): Promise<
 
   yPos += 10;
 
-  // === GANTT CHART IMAGE (if provided) - Always on its own page ===
+  // === GANTT CHART IMAGE (if provided) - Always on its own landscape page ===
   if (chartImageDataUrl) {
-    // Always add a new page for the Gantt chart
-    pdf.addPage();
+    // Add a new landscape page for the Gantt chart
+    pdf.addPage('a4', 'landscape');
+    
+    const landscapePageWidth = pdf.internal.pageSize.getWidth();
+    const landscapePageHeight = pdf.internal.pageSize.getHeight();
+    const landscapeContentWidth = landscapePageWidth - (margin * 2);
     yPos = margin;
 
     pdf.setTextColor(...DARK_TEXT);
@@ -300,7 +304,7 @@ export async function exportProfessionalPdf(options: PdfExportOptions): Promise<
     pdf.text('Gantt Chart', margin, yPos);
     yPos += 8;
 
-    // Calculate image dimensions to fit the full page
+    // Calculate image dimensions to fit the full landscape page
     const img = new Image();
     img.src = chartImageDataUrl;
     
@@ -308,9 +312,9 @@ export async function exportProfessionalPdf(options: PdfExportOptions): Promise<
       img.onload = () => {
         const imgAspect = img.width / img.height;
         
-        // Use full available space on the dedicated page
-        const availableWidth = contentWidth;
-        const availableHeight = pageHeight - yPos - 25; // Leave room for footer
+        // Use full available space on the landscape page
+        const availableWidth = landscapeContentWidth;
+        const availableHeight = landscapePageHeight - yPos - 25; // Leave room for footer
         
         let imgWidth: number;
         let imgHeight: number;
@@ -330,7 +334,7 @@ export async function exportProfessionalPdf(options: PdfExportOptions): Promise<
         }
         
         // Center horizontally if narrower than content width
-        const xOffset = margin + (contentWidth - imgWidth) / 2;
+        const xOffset = margin + (landscapeContentWidth - imgWidth) / 2;
 
         // Add border
         pdf.setDrawColor(200, 200, 200);
@@ -348,20 +352,24 @@ export async function exportProfessionalPdf(options: PdfExportOptions): Promise<
   for (let i = 1; i <= totalPages; i++) {
     pdf.setPage(i);
     
+    // Get current page dimensions (handles mixed orientations)
+    const currentPageWidth = pdf.internal.pageSize.getWidth();
+    const currentPageHeight = pdf.internal.pageSize.getHeight();
+    
     // Footer line
     pdf.setDrawColor(200, 200, 200);
-    pdf.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+    pdf.line(margin, currentPageHeight - 15, currentPageWidth - margin, currentPageHeight - 15);
     
     // Footer text
     pdf.setTextColor(...GRAY_TEXT);
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(`Generated on ${format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')}`, margin, pageHeight - 10);
+    pdf.text(`Generated on ${format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')}`, margin, currentPageHeight - 10);
     
     // Page number
     const pageText = `Page ${i} of ${totalPages}`;
     const pageTextWidth = pdf.getTextWidth(pageText);
-    pdf.text(pageText, pageWidth - margin - pageTextWidth, pageHeight - 10);
+    pdf.text(pageText, currentPageWidth - margin - pageTextWidth, currentPageHeight - 10);
   }
 
   // Save the PDF
